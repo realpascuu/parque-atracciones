@@ -22,7 +22,7 @@ from concurrent import futures
 # python3 FWQ_WaitingTimeServer.py puerto_engine host_broker:port_broker
 
 atracciones = []
-
+pill2kill = threading.Event()
 class WaitingTime(waitingTime_pb2_grpc.WaitingTimeServicer):
     async def giveTime(self, request: waitingTime_pb2.EngineRequest, context: grpc.aio.ServicerContext) -> waitingTime_pb2.TimeReply:
         atraccionesEngine = np.frombuffer(request.atracciones, dtype=np.int64).reshape(request.numFilas, 5)
@@ -46,16 +46,21 @@ class WaitingTime(waitingTime_pb2_grpc.WaitingTimeServicer):
 
 def obtieneInfo():
     global atracciones
-    for message in consumer:
-        exists = False
-        for atraccion in atracciones:
-            if atraccion.id == int(message.value['id']):
-                atraccion.cola = int(message.value['cola'])
-                exists = True
-        if not exists:
-            nuevaAtraccion = Atraccion(int(message.value['id']), -1, -1, Coordenadas2D(-1,-1))
-            nuevaAtraccion.cola = int(message.value['cola'])
-            atracciones.append(nuevaAtraccion)
+    # Definir el consumidor
+    consumer = Kafka.definirConsumidorJSON(host, port, Kafka.TOPIC_TIEMPO_ESPERA)
+    while True:
+        for message in consumer:
+            exists = False
+            print(message.value)
+            for atraccion in atracciones:
+                if atraccion.id == int(message.value['id']):
+                    atraccion.cola = int(message.value['cola'])
+                    exists = True
+            if not exists:
+                nuevaAtraccion = Atraccion(int(message.value['id']), -1, -1, Coordenadas2D(-1,-1))
+                nuevaAtraccion.cola = int(message.value['cola'])
+                atracciones.append(nuevaAtraccion)
+        consumer.commit()
 
 async def serve(port) -> None:
     server = grpc.aio.server()
@@ -69,10 +74,6 @@ async def serve(port) -> None:
 def getTime(cycle_time,visitors,cola):
     return (cycle_time*visitors/cola)
 
-def conexionEngine(port):
-    while True:
-        asyncio.run(serve(port))
-
 
 def signal_handler(signal, frame):
     # Controlar control + C 
@@ -80,11 +81,15 @@ def signal_handler(signal, frame):
     sleep(1)
     exit()
 
+def conexionEngine(port):
+    asyncio.run(serve(port))
+
+
 if __name__ == '__main__':
-    signal.signal(signal.SIGINT, signal_handler)
     # Obtener puerto a la escucha de gRPC con Engine
     listen_port = sys.argv[1]
     
+    signal.signal(signal.SIGINT, signal_handler)
     # Obtener host y puerto kafka
     broken_kafka = sys.argv[2].split(":")
     host = broken_kafka[0]
@@ -93,13 +98,10 @@ if __name__ == '__main__':
     # Obtiene información de los sensores 
     hiloEngine = threading.Thread(
         target=conexionEngine,
-        args=(listen_port, )
+        args=(listen_port, ),
+        daemon=True
     )    
     #hiloEngine.daemon = True
     hiloEngine.start()
 
-    # Definir el consumidor
-    consumer = Kafka.definirConsumidorJSON(host, port, Kafka.TOPIC_TIEMPO_ESPERA)
-    
-    while True:
-        obtieneInfo()
+    obtieneInfo()
