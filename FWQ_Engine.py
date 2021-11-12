@@ -20,16 +20,23 @@ import grpc
 
 from protosWait import waitingTime_pb2, waitingTime_pb2_grpc 
 
+host_BD = 'localhost'
+user_BD = 'admin'
+passwd_BD = 'burguerking'
+database_BD = 'parque'
+
 # contador Visisitantes conectados
 contadorVisitantes = 0
+atracciones = []
 
 ## LLAMADA A ENGINE
 # python3 FWQ_Engine.py host:port_kafka nummax_visitantes host:port_waitingserver
 
-async def run(atracciones,host, port):
+async def run(host, port):
     async with grpc.aio.insecure_channel(str(host) + ':' + str(port)) as channel:
+        global atracciones
         stub = waitingTime_pb2_grpc.WaitingTimeStub(channel)
-
+        
         atraccionesNumpy = np.zeros((len(atracciones),5), dtype=np.int64)
 
         for x in range(0, len(atracciones)):
@@ -41,7 +48,15 @@ async def run(atracciones,host, port):
 
         byteatraccion = atraccionesNumpy.tobytes()
         (m, n) = atraccionesNumpy.shape
-        user = await stub.giveTime(waitingTime_pb2.EngineRequest(atracciones=byteatraccion, numFilas=m))
+        conexion = False
+        while conexion == False:
+            try: 
+                user = await stub.giveTime(waitingTime_pb2.EngineRequest(atracciones=byteatraccion, numFilas=m))
+                conexion = True
+            except Exception as e:
+                print("No se ha podido establecer conexión con Servidor Tiempos espera en " + str(host) + ':' + str(port))
+                sleep(5)
+
         atraUpdate = np.frombuffer(user.atracciones, dtype=np.int64).reshape(user.numFilas, 2)
         return atraUpdate
 
@@ -52,17 +67,17 @@ def dibujarAtracciones(mapa, atracciones):
     for atraccion in atracciones:
         mapa[atraccion.coordenadas.x, atraccion.coordenadas.y] = atraccion.tiempoEspera
 
-def comunicarTiempoEspera(mapa, atracciones, host, port):
+def comunicarTiempoEspera(mapa, host, port):
     while True:
+        global atracciones
         # HARÍA COMUNICACIÓN CON TIEMPO DE ESPERA
-        if atracciones != []:
-            updateAtrac = asyncio.run(run(atracciones, host, port))
-            # almacenarlos en atracciones
-            for upAtr in updateAtrac:
-                for atraccion in atracciones:
-                    if upAtr[0] ==  atraccion.id:
-                        atraccion.tiempoEspera = upAtr[1]
-                        continue
+        updateAtrac = asyncio.run(run(host, port))
+        # almacenarlos en atracciones
+        for upAtr in updateAtrac:
+            for atraccion in atracciones:
+                if upAtr[0] ==  atraccion.id:
+                    atraccion.tiempoEspera = upAtr[1]
+                    continue
             
             dibujarAtracciones(mapa, atracciones)
         sleep(random.randint(3,8))
@@ -117,6 +132,31 @@ def signal_handler(signal, frame):
     sleep(1)
     exit()
 
+def consultaBD():
+    global atracciones
+    conexion = False
+    while conexion == False:
+        try:
+            mydb = mysql.connector.connect(
+                host=host_BD,
+                user=user_BD,
+                passwd=passwd_BD,
+                database=database_BD)
+
+            conexion = True
+            mycursor = mydb.cursor()
+            
+            query = "SELECT * FROM `atraccion`"
+
+            mycursor.execute(query)
+            data = mycursor.fetchall()
+
+            for x in data:
+                atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4])))
+        except Exception as e:
+            print(e)
+            sleep(5)
+
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     # Host y puerto servidor kafka
@@ -134,33 +174,23 @@ if __name__ == '__main__':
 
     # CARGAR MAPA DE LA BD (HACER LO SIGUIENTE)
     # 1 Carga atracciones de la BD
-    mydb = mysql.connector.connect(
-        host="192.168.25.1",
-        user="admin",
-        passwd="burguerking",
-        database="parque")
-
-    mycursor = mydb.cursor()
+    hiloConsultaBD = threading.Thread(
+        target=consultaBD,
+        name="mysql"
+    )
+    hiloConsultaBD.start()
     
-    query = "SELECT * FROM `atraccion`"
-
-    mycursor.execute(query)
-    data = mycursor.fetchall()
-    atracciones = []
-    for x in data:
-        atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4])))
-
     # Mapa vacío
     mapa = np.full((20,20), str('.'), np.dtype('U3'))
     ## COMUNICACIÓN CON EL SERVIDOR DE TIEMPOS DE ESPERA
     hiloTiemposEspera = threading.Thread(
             target=comunicarTiempoEspera,
-            args=(mapa, atracciones, host_tiempos, port_tiempos, ),
+            args=(mapa, host_tiempos, port_tiempos, ),
             name="espera"
         )
     #hiloTiemposEspera.daemon = True
     hiloTiemposEspera.start()
-    
+
     # DEFINIR CONSUMIDOR KAFKA
     consumerMov = Kafka.definirConsumidorJSON(host_broker, port_broker, Kafka.TOPIC_MOVIMIENTO)
     consumerEntrada = Kafka.definirConsumidorJSON(host_broker, port_broker, Kafka.TOPIC_INTENTO_ENTRADA)
