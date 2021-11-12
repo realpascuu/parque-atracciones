@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package waitingTime;
+
+// The WaitingTimeServer service definition.
+service WaitingTime {
+  rpc giveTime (EngineRequest) returns (TimeReply);
+}
+
+// The hello request message containing the user name.
+message EngineRequest {
+  bytes atracciones = 1;
+  int32 numFilas = 2;
+}
+
+// The hello response message containing the greetings.
+message TimeReply {
+  bytes atracciones = 1;
+  int32 numFilas = 2;
+}
+

@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package register;
+
+// The register service definition.
+service Register {
+  rpc doRegister (UserRequest) returns (UserReply);
+}
+
+// The hello request message containing the user name.
+message UserRequest {
+  string username = 1;
+  string password = 2;
+  string id = 3;
+}
+
+// The hello response message containing the greetings.
+message UserReply {
+  string message = 1;
+}
+
+service Login{
+  rpc doLogin (UserPedido) returns (UserRespuesta);
+}
+
+message UserPedido {
+  string username = 1;
+  string password = 2;
+}
+
+message UserRespuesta {
+  string message = 1;
+  string username = 2;
+  string alias = 3;
+}
+
+service Update{
+  rpc doUpdate (UserToChange) returns (UserUpdate);
+}
+
+message UserToChange{
+  string oldUsername = 1;
+  string newUsername = 2;
+  string password = 3;
+}
+
+message UserUpdate{
+  string message = 1;
+}
