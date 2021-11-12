@@ -91,8 +91,8 @@ def buscarAtraccion(usuario, mapa):
         # Coordenada random por donde empieza a buscar
         i = random.randint(0, 19)
         # Busca por el submapa
-        for x in range(i,19):
-            for y in range(i,19):
+        for x in range(i,20):
+            for y in range(i,20):
                 try:
                     # Probar si lo que se encuentra en el mapa es una atracción
                     if int(mapa[x,y]) <= 60:
@@ -122,7 +122,7 @@ def movimientoUsuario(usuario):
     # Movimiento lineal
     if usuario.coordenadas.x == usuario.atraccion.x:
         usuario.coordenadas.y = movimientoLineal(usuario.coordenadas.y, usuario.atraccion.y)
-    elif usuario.coordenadas.y == usuario.coordenadas.y:
+    elif usuario.coordenadas.y == usuario.atraccion.y:
         usuario.coordenadas.x = movimientoLineal(usuario.coordenadas.x, usuario.atraccion.x)
     ## MOVIMIENTO DIAGONAL
     else:
@@ -166,16 +166,30 @@ def leerEntrada(usuario):
 def leerMapa(usuario, mapa):
     for message in consumerMapa:
         mapa = message.value
+        ## Dibujar mapa 
+        print(end="    ")
+        for i in range(0,20):
+            if i < 10:
+                print(i, end="  ")
+            else:
+                print(i, end=" ")
+            print()
+            for x in range(0,20):
+                if x < 10:
+                    print(" " + str(x), end="  ")
+                else:
+                    print(x, end="  ")
+                for y in range(0,20):
+                    # Obtener donde ubica el engine al visitante
+                    if usuario.coordenadas is None or mapa[x, y] == usuario.alias:
+                        usuario.coordenadas = Coordenadas2D(x,y)
+                    print(mapa[x, y], end="  ")
+                print()
+            print()
+
+        # Ver si usuario tiene objetivo para moverse por el mapa, y si no, buscarlo
         if usuario.atraccion is None or (usuario.atraccion.x, usuario.atraccion.y) == (usuario.coordenadas.x, usuario.coordenadas.y) or int(mapa[usuario.atraccion.x, usuario.atraccion.y]) > 60:
             buscarAtraccion(usuario, mapa)
-        for x in mapa:
-            for y in x:
-                # Obtener donde ubica el engine al visitante
-                if usuario.coordenadas is None and y == usuario.alias:
-                    usuario.coordenadas = Coordenadas2D(x,y)
-                print(y, end=" ")
-            print()
-        print()
 
 def enadenarMovimientos(usuario):
     while True:
