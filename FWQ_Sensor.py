@@ -5,7 +5,7 @@ import random
 import signal
 
 # Ejecución sensor
-# python3 FWQ_Sensor.py host_broker:port_broker idAtraccion
+LLAMADA_SENSOR = "python3 FWQ_Sensor.py <host_broker>:<port_broker> <idAtraccion>"
 
 def enviarDatos(idAtraccion, cola):
     datos = {
@@ -26,11 +26,18 @@ def signal_handler(signal, frame):
 # Recuperar host y puerto de el servidor kafka
 
 signal.signal(signal.SIGINT, signal_handler)
-broker_kafka = sys.argv[1].split(":")
-host = broker_kafka[0]
-port = broker_kafka[1]
-# Recuperar id de la atracción
-idAtraccion = int(sys.argv[2])
+try:
+    if len(sys.argv) != 3:
+        raise Exception
+
+    broker_kafka = sys.argv[1].split(":")
+    host = broker_kafka[0]
+    port = broker_kafka[1]
+    # Recuperar id de la atracción
+    idAtraccion = int(sys.argv[2])
+except Exception:
+    print(LLAMADA_SENSOR)
+    exit()
 # Definir productor kafka
 producer = Kafka.definirProductorJSON(host, port)
 
