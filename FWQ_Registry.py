@@ -19,8 +19,9 @@ passwd_BD = 'burguerking'
 database_BD = 'parque'
 
 # Ejecución Registry
-# python3 FWQ_Registry.py puerto
+LLAMADA_REGISTRY = "python3 FWQ_Registry.py <puerto_escucha>"
 
+_cleanup_coroutines = []
 class Register(register_pb2_grpc.RegisterServicer):
     async def doRegister(self, request: register_pb2.UserRequest, context: grpc.aio.ServicerContext) -> register_pb2.UserReply:
         logging.info('Se quiere registrar el usuario ' + request.username + ' con la contraseña ' + request.password)
@@ -139,18 +140,34 @@ async def serve(port) -> None:
     server.add_insecure_port(listen_addr)
     logging.info("Starting server on %s", listen_addr)
     await server.start()
-    await server.wait_for_termination() 
+
+# Módulo para apagar correctamente el registry
+    async def server_apagado():
+        logging.info("Cerrando...")
+
+    _cleanup_coroutines.append(server_apagado())
+    await server.wait_for_termination()
     
 def signal_handler(signal, frame):
     # Controlar control + C 
-    print("Apagando Registry...")
-    #server.stop()
     sleep(1)
     exit()
 
-
 if __name__ == '__main__':
-    port = sys.argv[1]
+    try:
+        if len(sys.argv) != 2:
+            raise Exception
+        port = sys.argv[1]
+    except Exception:
+        print(LLAMADA_REGISTRY)
+        exit()
+    
     logging.basicConfig(level=logging.INFO)
     signal.signal(signal.SIGINT, signal_handler)
-    asyncio.run(serve(port))
+
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(serve(port))
+    finally:
+        loop.run_until_complete(*_cleanup_coroutines)
+        loop.close()

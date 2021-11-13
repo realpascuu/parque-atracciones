@@ -160,7 +160,7 @@ def consultaBD():
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     try:
-        if sys.argv.count() != 4:
+        if len(sys.argv) != 4:
             raise Exception
         # Host y puerto servidor kafka
         broker_kafka = sys.argv[1].split(":")
