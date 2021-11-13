@@ -30,7 +30,7 @@ contadorVisitantes = 0
 atracciones = []
 
 ## LLAMADA A ENGINE
-# python3 FWQ_Engine.py host:port_kafka nummax_visitantes host:port_waitingserver
+LLAMADA_ENGINE = "python3 FWQ_Engine.py <host>:<port_kafka> <nummax_visitantes> <host>:<port_waitingserver>"
 
 async def run(host, port):
     async with grpc.aio.insecure_channel(str(host) + ':' + str(port)) as channel:
@@ -159,18 +159,24 @@ def consultaBD():
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
-    # Host y puerto servidor kafka
-    broker_kafka = sys.argv[1].split(":")
-    host_broker = broker_kafka[0]
-    port_broker = broker_kafka[1]
+    try:
+        if sys.argv.count() != 4:
+            raise Exception
+        # Host y puerto servidor kafka
+        broker_kafka = sys.argv[1].split(":")
+        host_broker = broker_kafka[0]
+        port_broker = broker_kafka[1]
 
-    # Número máximo de visitantes
-    max_visitantes = int(sys.argv[2])
+        # Número máximo de visitantes
+        max_visitantes = int(sys.argv[2])
 
-    # Host y puerto servidor tiempos espera
-    tiempos_espera = sys.argv[3].split(":")
-    host_tiempos = tiempos_espera[0]
-    port_tiempos = tiempos_espera[1]
+        # Host y puerto servidor tiempos espera
+        tiempos_espera = sys.argv[3].split(":")
+        host_tiempos = tiempos_espera[0]
+        port_tiempos = tiempos_espera[1]
+    except Exception:
+        print(LLAMADA_ENGINE)
+        exit()
 
     # CARGAR MAPA DE LA BD (HACER LO SIGUIENTE)
     # 1 Carga atracciones de la BD
