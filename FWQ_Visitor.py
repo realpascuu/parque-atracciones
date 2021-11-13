@@ -20,7 +20,7 @@ from protosRegistry import register_pb2, register_pb2_grpc
 from common.Usuario import Usuario
 
 ## LLAMADA A Visitor
-## python3 FWQ_Visitor.py host:port_registry host:port_kafka
+LLAMADA_VISITOR = "python3 FWQ_Visitor.py <host>:<port_registry> <host>:<port_kafka>"
 
 ## FUNCIÓN PARA ESTABLECER CONEXIÓN GRPC
 async def run(host, port):   
@@ -32,63 +32,69 @@ async def run(host, port):
             1. Registro
             2. Inicio Sesión
             3. Editar usuario
-            4. Salir
+            0. Salir
                 """)
             op = input("¿Qué desea hacer? ")
-            if op != "1" and op != "2" and op != "3":
-                print('''Introduce 1 para registrarte\nIntroduce 2 para iniciar sesión''')
-
-            if op == "1":
-                stub = register_pb2_grpc.RegisterStub(channel)
-                print("----------REGISTRO----------")
-                password = ""
-                password2 = "a"
-                nuevoUsername = input("Introduce usuario: ")
-                while(password != password2):                    
+            try:    
+                if int(op) == 1:
+                    stub = register_pb2_grpc.RegisterStub(channel)
+                    print("----------REGISTRO----------")
+                    password = ""
+                    password2 = "a"
+                    nuevoUsername = input("Introduce usuario: ")
+                    while(password != password2):                    
+                        password = getpass("Introduce contraseña: ")
+                        password2 = getpass("Vuelve a introducir la contraseña: ")
+                        if (password != password2):
+                            print("Error! Las contraseñas no coinciden")
+                    nuevoAlias = nuevoUsername[0:2]
+                    try:
+                        registro = await stub.doRegister(register_pb2.UserRequest(username=nuevoUsername, password=password, id=nuevoAlias))
+                        print(registro.message)
+                    except Exception as e:
+                        print("No se ha podido establecer conexión con " + host + ":" + port)
+                elif int(op) == 2:    
+                    print("-------------LOGIN-------------")
+                    posibleUsername = input("Introduce usuario: ")
                     password = getpass("Introduce contraseña: ")
-                    password2 = getpass("Vuelve a introducir la contraseña: ")
-                    if (password != password2):
-                        print("Error! Las contraseñas no coinciden")
-                nuevoAlias = nuevoUsername[0:2]
-                try:
-                    registro = await stub.doRegister(register_pb2.UserRequest(username=nuevoUsername, password=password, id=nuevoAlias))
-                    print(registro.message)
-                except Exception as e:
-                    print("No se ha podido establecer conexión con " + host + ":" + port)
-            elif op == "2":    
-                print("-------------LOGIN-------------")
-                posibleUsername = input("Introduce usuario: ")
-                password = getpass("Introduce contraseña: ")
 
-                stub = register_pb2_grpc.LoginStub(channel)
-                try:
-                    login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=password))
-                    print(login.message)
-                    if login.message == "Autentificación exitosa!!":
-                        return login
-                except Exception as e:
-                    print("No se ha podido establecer conexión con " + host + ":" + port)
-            elif op == "3":
-                print("-------------EDITAR USUARIO-------------")
-                loginUsername = input("Introduce usuario: ")
-                password = getpass("Introduce contraseña: ")
+                    stub = register_pb2_grpc.LoginStub(channel)
+                    try:
+                        login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=password))
+                        print(login.message)
+                        if login.message == "Autentificación exitosa!!":
+                            return login
+                    except Exception as e:
+                        print("No se ha podido establecer conexión con " + host + ":" + port)
+                elif int(op) == 3:
+                    print("-------------EDITAR USUARIO-------------")
+                    loginUsername = input("Introduce usuario: ")
+                    password = getpass("Introduce contraseña: ")
+                    
+                    try:
+                        login = await stub.doLogin(register_pb2.UserPedido(username=loginUsername, password=password))
+                        print(login.message)
+                        if login.message == "Autentificación exitosa!!":
+                            opUpdate = input("Quieres modificar tus datos? (y/n) ")
+                            if opUpdate == 'y':
+                                stubUpdate = register_pb2_grpc.UpdateStub(channel)
+                                newUser = input("Introduce usuario nuevo: ")
+                                newPass = input("Introduce nueva contraseña: ")
+                                update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=loginUsername,newUsername=newUser,password=newPass))
+                                print(update.message)
+                    except Exception as e:
+                        print("No se ha podido establecer conexión con " + host + ":" + port)
+                elif int(op) == 0:
+                    exit()
+                else:
+                    print('Introduce 1 para registrarte')
+                    print('Introduce 2 para iniciar sesión')
+                    print('Introduce 3 para editar usuario')
+            except ValueError:
+                print('Introduce 1 para registrarte')
+                print('Introduce 2 para iniciar sesión')
+                print('Introduce 3 para editar usuario')
                 
-                try:
-                    login = await stub.doLogin(register_pb2.UserPedido(username=loginUsername, password=password))
-                    print(login.message)
-                    if login.message == "Autentificación exitosa!!":
-                        opUpdate = input("Quieres modificar tus datos? (y/n) ")
-                        if opUpdate == 'y':
-                            stubUpdate = register_pb2_grpc.UpdateStub(channel)
-                            newUser = input("Introduce usuario nuevo: ")
-                            newPass = input("Introduce nueva contraseña: ")
-                            update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=loginUsername,newUsername=newUser,password=newPass))
-                            print(update.message)
-                except Exception as e:
-                    print("No se ha podido establecer conexión con " + host + ":" + port)
-            else:
-                exit()
-
 def buscarAtraccion(usuario, mapa):
     encontrado = False
     (x1, y1) = (-1, -1)
@@ -220,15 +226,25 @@ def arrancarConexionRegistry(host, port):
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handlerRegistry)
-    # Host y puerto Registry
-    registry = sys.argv[1].split(":")
-    host_registry = registry[0]
-    port_registry = registry[1]
+    # Controlar que los argumentos tienen la estructura requerida
+    try:
+        # Controlar número de argumentos
+        if len(sys.argv) != 3:
+            raise Exception
 
-    # Host y puerto servidor kafka
-    broker_kafka = sys.argv[2].split(":")
-    host_broker = broker_kafka[0]
-    port_broker = broker_kafka[1]
+        # Host y puerto Registry
+        registry = sys.argv[1].split(":")
+        host_registry = registry[0]
+        port_registry = registry[1]
+
+        # Host y puerto servidor kafka
+        broker_kafka = sys.argv[2].split(":")
+        host_broker = broker_kafka[0]
+        port_broker = broker_kafka[1]
+    except Exception:
+        print(LLAMADA_VISITOR)
+        exit()
+
     ## Comprobación de que el usuario está en la BD
     logging.basicConfig()
     datosLogin = arrancarConexionRegistry(host_registry, port_registry)
