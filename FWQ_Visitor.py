@@ -87,14 +87,16 @@ async def run(host, port):
                 elif int(op) == 0:
                     exit()
                 else:
+                    print('VALOR INCORRECTO!')
                     print('Introduce 1 para registrarte')
                     print('Introduce 2 para iniciar sesión')
                     print('Introduce 3 para editar usuario')
             except ValueError:
+                print('VALOR INCORRECTO!')
                 print('Introduce 1 para registrarte')
                 print('Introduce 2 para iniciar sesión')
                 print('Introduce 3 para editar usuario')
-                
+
 def buscarAtraccion(usuario, mapa):
     encontrado = False
     (x1, y1) = (-1, -1)
