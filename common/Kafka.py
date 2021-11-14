@@ -15,7 +15,6 @@ TOPIC_PASEN = "pasen"
 
 # CONSUMIDOR JSON
 def definirConsumidorJSON(host, port, topic, offset, groupId):
-    print("Conectando consumidor Kafka...")
     conexion = False
     while(conexion == False):
         try:
@@ -36,7 +35,6 @@ def definirConsumidorJSON(host, port, topic, offset, groupId):
 
 ## PRODUCTOR JSON
 def definirProductorJSON(host, port):
-    print("Creando productor Kafka...")
     conexion = False
     while(conexion == False):
         try:
@@ -54,7 +52,6 @@ def definirProductorJSON(host, port):
 
 # CONSUMIDOR EN BYTES
 def definirConsumidorBytes(host, port, topic):
-    print("Conectando consumidor Kafka...")
     conexion = False
     while(conexion == False):
         try:
@@ -74,7 +71,6 @@ def definirConsumidorBytes(host, port, topic):
 
 ## PRODUCTOR EN BYTES
 def definirProductorBytes(host, port):
-    print("Creando productor Kafka...")
     conexion = False
     while(conexion == False):
         try:

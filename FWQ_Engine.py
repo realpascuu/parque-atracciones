@@ -27,6 +27,7 @@ database_BD = 'parque'
 
 atracciones = []
 contadorVisitantes = 0
+usuariosDentro = []
 ## LLAMADA A ENGINE
 LLAMADA_ENGINE = "python3 FWQ_Engine.py <host>:<port_kafka> <nummax_visitantes> <host>:<port_waitingserver>"
 
@@ -113,16 +114,20 @@ def colaEntrada(mapa):
 
     for message in consumerEntrada:
         usuario = message.value
-        if 'salida' in usuario.keys() and buscarUsuario(usuariosDentro, usuario['username']):
-            # eliminar usuario del mapa
-            for i in range(0,20):
-                for j in range(0, 20):
-                    if mapa[i, j] == usuario['alias']:
-                        mapa[i, j] = '.'
-            print("Hasta pronto " + message.value['username'] + "!")
-            # restamos contador porque se ha ido uno y eliminamos
-            contadorVisitantes -= 1
-            sacarUsuario(usuariosDentro, usuario['username'])
+        if 'salida' in usuario.keys():
+            if buscarUsuario(usuariosDentro, usuario['username']):
+                # eliminar usuario del mapa
+                for i in range(0,20):
+                    for j in range(0, 20):
+                        if mapa[i, j] == usuario['alias']:
+                            mapa[i, j] = '.'
+                print("Hasta pronto " + message.value['username'] + "!")
+                # restamos contador porque se ha ido uno y eliminamos
+                contadorVisitantes -= 1
+                sacarUsuario(usuariosDentro, usuario['username'])
+            else:
+                # saca usuario en caso de que esté en la cola
+                sacarUsuario(usuariosCola, usuario['username'])
             # meter usuarios de la cola hasta que no hayan más o no quepan 
             while (not len(usuariosCola) == 0) and contadorVisitantes < max_visitantes:
                 entradaUsuario(usuariosCola[0])
@@ -140,11 +145,14 @@ def colaEntrada(mapa):
         elif not 'salida' in usuario.keys() and contadorVisitantes >= max_visitantes and usuario['x'] == -1:
             if not buscarUsuario(usuariosCola, usuario['username']):
                 usuariosCola.append(usuario)
+                # manda mensaje de que está dentro de la cola
+                usuario['cola'] = "Estás el número " + str(len(usuariosCola)) + " en la cola!"                
+                producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuario)
         # mostrar usuarios dentro y en cola
-        print("Usuarios dentro: ")
-        print(usuariosDentro)
-        print("Usuarios en cola: ")
-        print(usuariosCola)
+        logging.info("Usuarios dentro: ")
+        logging.info(usuariosDentro)
+        logging.info("Usuarios en cola: ")
+        logging.info(usuariosCola)
         # aceptar mensaje como leído
         consumerEntrada.commit()
 

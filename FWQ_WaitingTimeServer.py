@@ -38,7 +38,6 @@ class WaitingTime(waitingTime_pb2_grpc.WaitingTimeServicer):
         for actAtraccion in datosEngine:
             for atraccion in atracciones:
                 if atraccion.id == actAtraccion.id:
-                    print(actAtraccion.timec, actAtraccion.nvisitors, atraccion.cola)
                     datos.append([atraccion.id, getTime(actAtraccion.timec, actAtraccion.nvisitors, atraccion.cola)])
         datosNumpy = np.array(datos, dtype=np.int64)
         m = datosNumpy.shape
@@ -52,7 +51,6 @@ def obtieneInfo():
     while True:
         for message in consumer:
             exists = False
-            print(message.value)
             for atraccion in atracciones:
                 if atraccion.id == int(message.value['id']):
                     atraccion.cola = int(message.value['cola'])
