@@ -138,7 +138,8 @@ def colaEntrada(mapa):
             usuariosDentro.append(usuario)
         # usuario no cabe y aún no está dentro
         elif contadorVisitantes >= max_visitantes and usuario['x'] == -1:
-            usuariosCola.append(usuario)
+            if buscarUsuario(usuariosCola, usuario['username']):
+                usuariosCola.append(usuario)
         # mostrar usuarios dentro y en cola
         print("Usuarios dentro: ")
         print(usuariosDentro)

@@ -80,7 +80,7 @@ async def run(host, port):
                             if opUpdate == 'y':
                                 stubUpdate = register_pb2_grpc.UpdateStub(channel)
                                 newUser = input("Introduce usuario nuevo: ")
-                                newPass = input("Introduce nueva contraseña: ")
+                                newPass = getpass("Introduce nueva contraseña: ")
                                 update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=loginUsername,newUsername=newUser,password=newPass))
                                 print(update.message)
                     except Exception as e:
@@ -213,9 +213,6 @@ def leerMapa(usuario, mapa):
             else:
                 print(x, end="  ")
             for y in range(0,20):
-                """ # Obtener donde ubica el engine al visitante si este aún no tiene posición
-                if usuario.coordenadas.x == -1 and mapa[x, y] == usuario.alias:
-                    usuario.coordenadas = Coordenadas2D(x,y) """
                 print(mapa[x, y], end="  ")
             print()
         print()
