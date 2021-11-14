@@ -118,7 +118,7 @@ if __name__ == '__main__':
         args=(listen_port, ),
         daemon=True
     )    
-    #hiloEngine.daemon = True
+    hiloEngine.daemon = True
     hiloEngine.start()
 
     obtieneInfo()

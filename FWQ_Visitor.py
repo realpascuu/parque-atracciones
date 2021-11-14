@@ -196,7 +196,6 @@ def leerEntrada(usuario):
             else:
                 usuario.coordenadas.x = usuarioDentro['x']
                 usuario.coordenadas.y = usuarioDentro['y']
-                print(usuario.coordenadas.x, usuario.coordenadas.y)
                 break
     consumerEntrada.close()
 
@@ -246,7 +245,6 @@ def arrancarConexionRegistry(host, port):
 
 if __name__ == '__main__':
     usuario = None
-    signal.signal(signal.SIGINT, signal_handler)
     # Controlar que los argumentos tienen la estructura requerida
     try:
         # Controlar número de argumentos
@@ -266,8 +264,9 @@ if __name__ == '__main__':
         print(LLAMADA_VISITOR)
         exit(0)
 
+    signal.signal(signal.SIGINT, signal_handler)
     ## Comprobación de que el usuario está en la BD
-    logging.basicConfig()
+    #logging.basicConfig()
     datosLogin = arrancarConexionRegistry(host_registry, port_registry)
     
     # datos recibidos del login
@@ -303,7 +302,7 @@ if __name__ == '__main__':
     )
     hiloMapa.daemon = True
     hiloMapa.start()
-    sleep(3)
+    sleep(1)
     
     # hilo que se encarga del automatizado movimiento del usuario por el mapa
     hiloMovimiento = threading.Thread(

@@ -150,7 +150,7 @@ def colaEntrada(mapa):
                     'username' : usuario['username'],
                     'x' : usuario['x'],
                     'y' : usuario['y'],
-                    'cola' : 'Estás el número " + str(len(usuariosCola)) + " en la cola!'
+                    'cola' : 'Estás el número ' + str(len(usuariosCola)) + ' en la cola!'
                 }
                 producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuarioCola)
         # mostrar usuarios dentro y en cola
@@ -227,6 +227,7 @@ def consultaBD():
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
+    #logging.basicConfig(level=logging.INFO)
     try:
         if len(sys.argv) != 4:
             raise Exception

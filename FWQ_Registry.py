@@ -162,7 +162,7 @@ if __name__ == '__main__':
         print(LLAMADA_REGISTRY)
         exit()
     
-    logging.basicConfig(level=logging.INFO)
+    #logging.basicConfig(level=logging.INFO)
     signal.signal(signal.SIGINT, signal_handler)
 
     loop = asyncio.get_event_loop()
