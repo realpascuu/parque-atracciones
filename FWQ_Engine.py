@@ -144,9 +144,14 @@ def colaEntrada(mapa):
         elif not 'salida' in usuario.keys() and contadorVisitantes >= max_visitantes and usuario['x'] == -1:
             if not buscarUsuario(usuariosCola, usuario['username']):
                 usuariosCola.append(usuario)
-                usuarioCola = usuario
                 # manda mensaje de que está dentro de la cola
-                usuarioCola['cola'] = "Estás el número " + str(len(usuariosCola)) + " en la cola!"                
+                usuarioCola = {
+                    'alias': usuario['alias'],
+                    'username' : usuario['username'],
+                    'x' : usuario['x'],
+                    'y' : usuario['y'],
+                    'cola' : 'Estás el número " + str(len(usuariosCola)) + " en la cola!'
+                }
                 producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuarioCola)
         # mostrar usuarios dentro y en cola
         logging.info("Usuarios dentro: ")
