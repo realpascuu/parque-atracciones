@@ -48,7 +48,7 @@ class WaitingTime(waitingTime_pb2_grpc.WaitingTimeServicer):
 def obtieneInfo():
     global atracciones
     # Definir el consumidor
-    consumer = Kafka.definirConsumidorJSON(host, port, Kafka.TOPIC_TIEMPO_ESPERA)
+    consumer = Kafka.definirConsumidorJSON(host, port, Kafka.TOPIC_TIEMPO_ESPERA, 'earliest', 'waiting_server')
     while True:
         for message in consumer:
             exists = False
@@ -61,7 +61,7 @@ def obtieneInfo():
                 nuevaAtraccion = Atraccion(int(message.value['id']), -1, -1, Coordenadas2D(-1,-1))
                 nuevaAtraccion.cola = int(message.value['cola'])
                 atracciones.append(nuevaAtraccion)
-        consumer.commit()
+            consumer.commit()
 
 async def serve(port) -> None:
     server = grpc.aio.server()
@@ -78,7 +78,10 @@ async def serve(port) -> None:
     await server.wait_for_termination() 
     
 def getTime(cycle_time,visitors,cola):
-    return (cycle_time*visitors/cola)
+    if cola != 0:
+        return (cycle_time*visitors/cola)
+    else:
+        return 0
 
 
 def signal_handler(signal, frame):

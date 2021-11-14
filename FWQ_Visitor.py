@@ -26,6 +26,7 @@ LLAMADA_VISITOR = "python3 FWQ_Visitor.py <host>:<port_registry> <host>:<port_ka
 async def run(host, port):   
     async with grpc.aio.insecure_channel(host + ':' + port) as channel:    
         seguir = True
+        # sigue bucle hasta que se hace login o se quiere salir de la app
         while seguir:
             print("BIENVENIDO AL PARQUE DE ATRACCIONES")
             print("""------------- MENÚ ------------------------
@@ -86,11 +87,13 @@ async def run(host, port):
                         print("No se ha podido establecer conexión con " + host + ":" + port)
                 elif int(op) == 0:
                     exit()
+                # caso de un número distinto a los del menú
                 else:
                     print('VALOR INCORRECTO!')
                     print('Introduce 1 para registrarte')
                     print('Introduce 2 para iniciar sesión')
                     print('Introduce 3 para editar usuario')
+            # caso de una cadena
             except ValueError:
                 print('VALOR INCORRECTO!')
                 print('Introduce 1 para registrarte')
@@ -115,6 +118,7 @@ def buscarAtraccion(usuario, mapa):
                         encontrado = True
                         break
                 except:
+                    # Posición distinta a atracción, no interesa
                     continue
     # Comprobar si es la primera vez que el usuario busca una atraccion
     if usuario.atraccion is None:
@@ -122,15 +126,25 @@ def buscarAtraccion(usuario, mapa):
     else:
         (usuario.atraccion.x, usuario.atraccion.y) = (x1, y1)
 
+# Cuidar el movimiento circular por el mapa
+def limitesMapa(x):
+    if x >= 20:
+        return 0
+    elif x <= -1:
+        return 19
+    else:
+        return x
+
 def movimientoLineal(coordUsuario, coordAtraccion):
     movimiento = -1
+    # Calcular movimento más cercano, hacia el objetivo o por detrás
     if abs(coordUsuario - coordAtraccion) < 19 - abs(coordUsuario - coordAtraccion):
         movimiento = 1
 
     if coordUsuario - coordAtraccion > 0:
         movimiento *= -1
 
-    return coordUsuario + 1 * movimiento
+    return limitesMapa(coordUsuario + 1 * movimiento)
 
 def movimientoUsuario(usuario):
     # Movimiento lineal
@@ -147,7 +161,9 @@ def movimientoUsuario(usuario):
         if a2 > 0:
             movimientoY = 1
 
-        (usuario.coordenadas.x, usuario.coordenadas.y) = (usuario.coordenadas.x + movimientoX, usuario.coordenadas.y + movimientoY)
+        finalX = limitesMapa(usuario.coordenadas.x + movimientoX)
+        finalY = limitesMapa(usuario.coordenadas.y + movimientoY)
+        (usuario.coordenadas.x, usuario.coordenadas.y) = (finalX, finalY)
 
 def enviarDatos(usuario, topic):
     datos = {
@@ -159,6 +175,7 @@ def enviarDatos(usuario, topic):
     producer.send(topic, value=datos)
 
 def enviarDatosSalida(usuario, topic):
+    # Añadir key salida para que engine identifique la intención
     datos = {
         'alias' : usuario.alias,
         'username' : usuario.username,
@@ -171,11 +188,13 @@ def enviarDatosSalida(usuario, topic):
 def leerEntrada(usuario):
     for message in consumerEntrada:
         usuarioDentro = message.value
-        logging.info("Voy a entrar!")
+        # busca si el mensaje se trata de su posición en el mapa o de otro usuario
         if usuarioDentro['username'] == usuario.username:
             usuario.coordenadas.x = usuarioDentro['x']
             usuario.coordenadas.y = usuarioDentro['y']
+            print(usuario.coordenadas.x, usuario.coordenadas.y)
             break
+    consumerEntrada.close()
 
 def leerMapa(usuario, mapa):
     for message in consumerMapa:
@@ -187,24 +206,25 @@ def leerMapa(usuario, mapa):
                 print(i, end="  ")
             else:
                 print(i, end=" ")
+        print()
+        for x in range(0,20):
+            if x < 10:
+                print(" " + str(x), end="  ")
+            else:
+                print(x, end="  ")
+            for y in range(0,20):
+                """ # Obtener donde ubica el engine al visitante si este aún no tiene posición
+                if usuario.coordenadas.x == -1 and mapa[x, y] == usuario.alias:
+                    usuario.coordenadas = Coordenadas2D(x,y) """
+                print(mapa[x, y], end="  ")
             print()
-            for x in range(0,20):
-                if x < 10:
-                    print(" " + str(x), end="  ")
-                else:
-                    print(x, end="  ")
-                for y in range(0,20):
-                    # Obtener donde ubica el engine al visitante
-                    if usuario.coordenadas is None or mapa[x, y] == usuario.alias:
-                        usuario.coordenadas = Coordenadas2D(x,y)
-                    print(mapa[x, y], end="  ")
-                print()
-            print()
+        print()
 
         # Ver si usuario tiene objetivo para moverse por el mapa, y si no, buscarlo
         if usuario.atraccion is None or (usuario.atraccion.x, usuario.atraccion.y) == (usuario.coordenadas.x, usuario.coordenadas.y) or int(mapa[usuario.atraccion.x, usuario.atraccion.y]) > 60:
             buscarAtraccion(usuario, mapa)
 
+# Movimiento automatizado cada x segundos hacia la atracción escogida
 def enadenarMovimientos(usuario):
     while True:
         sleep(5)
@@ -212,14 +232,11 @@ def enadenarMovimientos(usuario):
             movimientoUsuario(usuario)
         enviarDatos(usuario, Kafka.TOPIC_MOVIMIENTO)
 
-def signal_handlerRegistry(signal, frame):
-    # Controlar control + C
-    print("CHAO CHAO CHAO")
-    exit()
-
 def signal_handler(signal, frame):
-    # Controlar control + C 
-    enviarDatosSalida(usuario, Kafka.TOPIC_INTENTO_ENTRADA)
+    # Controlar control + C
+    if not usuario is None:
+        enviarDatosSalida(usuario, Kafka.TOPIC_INTENTO_ENTRADA)
+    sleep(2)
     print("CHAO CHAO CHAO")
     exit()
 
@@ -227,7 +244,8 @@ def arrancarConexionRegistry(host, port):
     return asyncio.run(run(host, port))
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGINT, signal_handlerRegistry)
+    usuario = None
+    signal.signal(signal.SIGINT, signal_handler)
     # Controlar que los argumentos tienen la estructura requerida
     try:
         # Controlar número de argumentos
@@ -245,32 +263,35 @@ if __name__ == '__main__':
         port_broker = broker_kafka[1]
     except Exception:
         print(LLAMADA_VISITOR)
-        exit()
+        exit(0)
 
     ## Comprobación de que el usuario está en la BD
     logging.basicConfig()
     datosLogin = arrancarConexionRegistry(host_registry, port_registry)
     
+    # datos recibidos del login
     username = datosLogin.username
     alias = datosLogin.alias
-    #hiloLogin.join()
 
-    signal.signal(signal.SIGINT, signal_handler)
     ## INICIO DE SESIÓN CORRECTO
     usuario = Usuario(username, alias)
     # DEFINIR CONSUMIDOR Y PRODUCTOR KAFKA ENTRADA 
     producer = Kafka.definirProductorJSON(host_broker, port_broker)
-    consumerEntrada = Kafka.definirConsumidorJSON(host_broker, port_broker, Kafka.TOPIC_PASEN)
+    consumerEntrada = Kafka.definirConsumidorJSON(host_broker, port_broker, Kafka.TOPIC_PASEN, 'latest', 'cola_visitor')
+    
+    # hilo que escucha la entrada que le proporciona ENGINE
     hiloEntrada = threading.Thread(
         target=leerEntrada,
         args=(usuario, )
     )
     hiloEntrada.daemon = True
     hiloEntrada.start()
-    while hiloEntrada.is_alive():
-        sleep(4)
-        enviarDatos(usuario, Kafka.TOPIC_INTENTO_ENTRADA)
+    
+    # informar del intento de entrada
+    enviarDatos(usuario, Kafka.TOPIC_INTENTO_ENTRADA)
 
+    # esperar a que termine el hilo para continuar ejecución
+    hiloEntrada.join()
     mapa = None
     # DEFINIR CONSUMIDOR KAFKA QUE RECIBE EL MAPA
     consumerMapa = Kafka.definirConsumidorBytes(host_broker, port_broker, Kafka.TOPIC_MAPA)
@@ -283,6 +304,7 @@ if __name__ == '__main__':
     hiloMapa.start()
     sleep(3)
     
+    # hilo que se encarga del automatizado movimiento del usuario por el mapa
     hiloMovimiento = threading.Thread(
         target=enadenarMovimientos,
         args=(usuario, )
@@ -290,9 +312,11 @@ if __name__ == '__main__':
     hiloMovimiento.daemon = True
     hiloMovimiento.start()
 
+    # opción para el usuario de salir escribiendo palabra 'exit'
     while True:
         salida = input()
         if salida == "exit":
             enviarDatosSalida(usuario, Kafka.TOPIC_INTENTO_ENTRADA)
+            sleep(2)
             print("CHAO CHAO CHAO")
-            exit()
+            exit(0)

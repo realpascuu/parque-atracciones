@@ -25,10 +25,8 @@ user_BD = 'admin'
 passwd_BD = 'burguerking'
 database_BD = 'parque'
 
-# contador Visisitantes conectados
-contadorVisitantes = 0
 atracciones = []
-
+contadorVisitantes = 0
 ## LLAMADA A ENGINE
 LLAMADA_ENGINE = "python3 FWQ_Engine.py <host>:<port_kafka> <nummax_visitantes> <host>:<port_waitingserver>"
 
@@ -68,8 +66,9 @@ def dibujarAtracciones(mapa, atracciones):
         mapa[atraccion.coordenadas.x, atraccion.coordenadas.y] = atraccion.tiempoEspera
 
 def comunicarTiempoEspera(mapa, host, port):
+    global atracciones
     while True:
-        global atracciones
+        sleep(random.randint(3,8))
         # HARÍA COMUNICACIÓN CON TIEMPO DE ESPERA
         updateAtrac = asyncio.run(run(host, port))
         # almacenarlos en atracciones
@@ -79,26 +78,76 @@ def comunicarTiempoEspera(mapa, host, port):
                     atraccion.tiempoEspera = upAtr[1]
                     continue
             
-            dibujarAtracciones(mapa, atracciones)
-        sleep(random.randint(3,8))
+        dibujarAtracciones(mapa, atracciones)
+        if 'producerMapa' in globals():
+            enviarMapa(mapa)
 
-def colaEntrada(contadorVisitantes, mapa):
+def entradaUsuario(usuario):
+    global contadorVisitantes
+    print("Bienvenido " + usuario['username'] + "!")
+    usuario['x'] = random.randint(0, 19)
+    usuario['y'] = random.randint(0, 19)
+    contadorVisitantes += 1
+    mapa[usuario['x'], usuario['y']] = usuario['alias']
+    producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuario)
+
+# sacamos usuario de lista de usuarios dentro del parque
+def sacarUsuario(usuariosDentro, username):
+    for i in range(0, len(usuariosDentro)):
+        if usuariosDentro[i]['username'] == username:
+            usuariosDentro.pop(i)
+            break
+
+# buscamos usuario en lista de usuarios dentro del parque
+def buscarUsuario(usuariosDentro, username):
+    for i in range(0, len(usuariosDentro)):
+        if usuariosDentro[i]['username'] == username:
+            return True
+    
+    return False
+
+def colaEntrada(mapa):
+    global contadorVisitantes
+    usuariosCola = []
+    usuariosDentro = []
+
     for message in consumerEntrada:
         usuario = message.value
-        if 'salida' in usuario.keys():
-            if usuario['salida'] == True:
-                mapa[message.value['x'], message.value['y']] = '.'
-                print("Hasta pronto " + message.value['username'] + "!")
-                contadorVisitantes -= 1
+        if 'salida' in usuario.keys() and buscarUsuario(usuariosDentro, usuario['username']):
+            # eliminar usuario del mapa
+            for i in range(0,20):
+                for j in range(0, 20):
+                    if mapa[i, j] == usuario['alias']:
+                        mapa[i, j] = '.'
+            print("Hasta pronto " + message.value['username'] + "!")
+            # restamos contador porque se ha ido uno y eliminamos
+            contadorVisitantes -= 1
+            sacarUsuario(usuariosDentro, usuario['username'])
+            # meter usuarios de la cola hasta que no hayan más o no quepan 
+            while (not len(usuariosCola) == 0) and contadorVisitantes < max_visitantes:
+                entradaUsuario(usuariosCola[0])
+                usuariosDentro.append(usuariosCola[0])
+                usuariosCola.pop(0)
+        # detectar duplicados de usuarios
+        elif buscarUsuario(usuariosDentro, usuario['username']):
+            print(usuario['username'] + " ya está dentro!!")
+        # usuario cabe y aún no está dentro
         elif contadorVisitantes < max_visitantes and usuario['x'] == -1:
-            print("Bienvenido " + usuario['username'] + "!")
-            usuario['x'] = random.randint(0, 19)
-            usuario['y'] = random.randint(0, 19)
-            contadorVisitantes += 1
-            mapa[usuario['x'], usuario['y']] = usuario['alias']
-            producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuario)
-        
+            print(contadorVisitantes)
+            entradaUsuario(usuario)
+            usuariosDentro.append(usuario)
+        # usuario no cabe y aún no está dentro
+        elif contadorVisitantes >= max_visitantes and usuario['x'] == -1:
+            usuariosCola.append(usuario)
+        # mostrar usuarios dentro y en cola
+        print("Usuarios dentro: ")
+        print(usuariosDentro)
+        print("Usuarios en cola: ")
+        print(usuariosCola)
+        # aceptar mensaje como leído
+        consumerEntrada.commit()
 
+# Tener en cuenta los movimientos circulares
 def limitesMapa(x):
     if x >= 20:
         return 0
@@ -111,26 +160,24 @@ def obtieneMovimiento(mapa):
     for message in consumerMov:
         ## OBTIENE EL NUEVO MAPA
         usuario = message.value
-        # buscar movimiento anterior
-        for i in range(-1,2):
-            for j in range(-1, 2):
-                if i == 0 and j == 0:
-                    continue
-                x = limitesMapa(usuario['x'] + i)
-                y = limitesMapa(usuario['y'] + j)
-                if mapa[x, y] == usuario['alias']:
-                    mapa[x, y] = '.'
+        # eliminar alias en el mapa
+        for i in range(0,20):
+            for j in range(0, 20):
+                if mapa[i, j] == usuario['alias']:
+                    mapa[i, j] = '.'
+        # añadir en el mapa el movimiento actual
         mapa[usuario['x'], usuario['y']] = usuario['alias']
         # actualizar datos de colas de espera
         dibujarAtracciones(mapa, atracciones)
         ## ENVÍA EL MAPA A LOS USUARIOS
         enviarMapa(mapa)
+        consumerMov.commit()
 
 def signal_handler(signal, frame):
     # Controlar control + C 
     print("Apagando Engine...")
     sleep(1)
-    exit()
+    sys.exit(0)
 
 def consultaBD():
     global atracciones
@@ -198,8 +245,8 @@ if __name__ == '__main__':
     hiloTiemposEspera.start()
 
     # DEFINIR CONSUMIDOR KAFKA
-    consumerMov = Kafka.definirConsumidorJSON(host_broker, port_broker, Kafka.TOPIC_MOVIMIENTO)
-    consumerEntrada = Kafka.definirConsumidorJSON(host_broker, port_broker, Kafka.TOPIC_INTENTO_ENTRADA)
+    consumerMov = Kafka.definirConsumidorJSON(host_broker, port_broker, Kafka.TOPIC_MOVIMIENTO, 'latest', 'engine_movimiento')
+    consumerEntrada = Kafka.definirConsumidorJSON(host_broker, port_broker, Kafka.TOPIC_INTENTO_ENTRADA, 'earliest', 'engine_entrada')
     # DEFINIR PRODUCTOR KAFKA
     producerEntrada = Kafka.definirProductorJSON(host_broker, port_broker)
     producerMapa = Kafka.definirProductorBytes(host_broker, port_broker)
@@ -207,7 +254,7 @@ if __name__ == '__main__':
     ## COMUNICARSE CON LA COLA DE ENTRADA DE VISITANTES
     hiloEntrada = threading.Thread(
         target=colaEntrada,
-        args=(contadorVisitantes, mapa, ),
+        args=(mapa, ),
         name="entrada"
     )
     #hiloEntrada.daemon = True

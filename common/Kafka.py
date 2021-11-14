@@ -14,7 +14,7 @@ TOPIC_INTENTO_ENTRADA = "colaentrada"
 TOPIC_PASEN = "pasen"
 
 # CONSUMIDOR JSON
-def definirConsumidorJSON(host, port, topic):
+def definirConsumidorJSON(host, port, topic, offset, groupId):
     print("Conectando consumidor Kafka...")
     conexion = False
     while(conexion == False):
@@ -22,7 +22,8 @@ def definirConsumidorJSON(host, port, topic):
             consumidor = KafkaConsumer(
                 topic,
                 bootstrap_servers=[host + ':' + port],
-                auto_offset_reset='latest',
+                auto_offset_reset=offset,
+                group_id=groupId,
                 value_deserializer=lambda x:
                 loads(x.decode('utf-8'))  
             )
@@ -61,6 +62,7 @@ def definirConsumidorBytes(host, port, topic):
                 topic,
                 bootstrap_servers=[host + ':' + port],
                 auto_offset_reset='latest',
+                group_id='mapa',
                 value_deserializer=lambda x:
                 np.frombuffer(x, dtype='U3').reshape(20,20)  
             )
