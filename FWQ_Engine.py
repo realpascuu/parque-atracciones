@@ -20,7 +20,7 @@ import grpc
 
 from protosWait import waitingTime_pb2, waitingTime_pb2_grpc 
 
-host_BD = 'localhost'
+host_BD = '192.168.25.1'
 user_BD = 'admin'
 passwd_BD = 'burguerking'
 database_BD = 'parque'
@@ -138,16 +138,16 @@ def colaEntrada(mapa):
             print(usuario['username'] + " ya está dentro!!")
         # usuario cabe y aún no está dentro
         elif not 'salida' in usuario.keys() and contadorVisitantes < max_visitantes and usuario['x'] == -1:
-            print(contadorVisitantes)
             entradaUsuario(usuario)
             usuariosDentro.append(usuario)
         # usuario no cabe y aún no está dentro
         elif not 'salida' in usuario.keys() and contadorVisitantes >= max_visitantes and usuario['x'] == -1:
             if not buscarUsuario(usuariosCola, usuario['username']):
                 usuariosCola.append(usuario)
+                usuarioCola = usuario
                 # manda mensaje de que está dentro de la cola
-                usuario['cola'] = "Estás el número " + str(len(usuariosCola)) + " en la cola!"                
-                producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuario)
+                usuarioCola['cola'] = "Estás el número " + str(len(usuariosCola)) + " en la cola!"                
+                producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuarioCola)
         # mostrar usuarios dentro y en cola
         logging.info("Usuarios dentro: ")
         logging.info(usuariosDentro)

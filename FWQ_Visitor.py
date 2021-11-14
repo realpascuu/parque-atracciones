@@ -192,7 +192,7 @@ def leerEntrada(usuario):
         # busca si el mensaje se trata de su posición en el mapa o de otro usuario
         if usuarioDentro['username'] == usuario.username:
             if 'cola' in usuarioDentro.keys():
-                print(usuario['cola'])
+                print(usuarioDentro['cola'])
             else:
                 usuario.coordenadas.x = usuarioDentro['x']
                 usuario.coordenadas.y = usuarioDentro['y']
