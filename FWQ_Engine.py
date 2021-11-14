@@ -109,7 +109,7 @@ def buscarUsuario(usuariosDentro, username):
 def colaEntrada(mapa):
     global contadorVisitantes
     usuariosCola = []
-    usuariosDentro = []
+    global usuariosDentro
 
     for message in consumerEntrada:
         usuario = message.value
@@ -129,16 +129,16 @@ def colaEntrada(mapa):
                 usuariosDentro.append(usuariosCola[0])
                 usuariosCola.pop(0)
         # detectar duplicados de usuarios
-        elif buscarUsuario(usuariosDentro, usuario['username']):
+        elif not 'salida' in usuario.keys() and buscarUsuario(usuariosDentro, usuario['username']):
             print(usuario['username'] + " ya está dentro!!")
         # usuario cabe y aún no está dentro
-        elif contadorVisitantes < max_visitantes and usuario['x'] == -1:
+        elif not 'salida' in usuario.keys() and contadorVisitantes < max_visitantes and usuario['x'] == -1:
             print(contadorVisitantes)
             entradaUsuario(usuario)
             usuariosDentro.append(usuario)
         # usuario no cabe y aún no está dentro
-        elif contadorVisitantes >= max_visitantes and usuario['x'] == -1:
-            if buscarUsuario(usuariosCola, usuario['username']):
+        elif not 'salida' in usuario.keys() and contadorVisitantes >= max_visitantes and usuario['x'] == -1:
+            if not buscarUsuario(usuariosCola, usuario['username']):
                 usuariosCola.append(usuario)
         # mostrar usuarios dentro y en cola
         print("Usuarios dentro: ")
@@ -158,9 +158,16 @@ def limitesMapa(x):
         return x
 
 def obtieneMovimiento(mapa):
+    global contadorVisitantes
+    global usuariosDentro
+
     for message in consumerMov:
         ## OBTIENE EL NUEVO MAPA
         usuario = message.value
+        # En caso de fallo de engine, vuelve a obtener los usuarios que se encontraban dentro del parque
+        if not buscarUsuario(usuariosDentro, usuario['username']):
+            usuariosDentro.append(usuario)
+            contadorVisitantes += 1
         # eliminar alias en el mapa
         for i in range(0,20):
             for j in range(0, 20):

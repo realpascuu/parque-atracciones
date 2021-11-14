@@ -73,6 +73,7 @@ async def run(host, port):
                     password = getpass("Introduce contraseña: ")
                     
                     try:
+                        stub = register_pb2_grpc.LoginStub(channel)
                         login = await stub.doLogin(register_pb2.UserPedido(username=loginUsername, password=password))
                         print(login.message)
                         if login.message == "Autentificación exitosa!!":

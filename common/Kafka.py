@@ -62,7 +62,6 @@ def definirConsumidorBytes(host, port, topic):
                 topic,
                 bootstrap_servers=[host + ':' + port],
                 auto_offset_reset='latest',
-                group_id='mapa',
                 value_deserializer=lambda x:
                 np.frombuffer(x, dtype='U3').reshape(20,20)  
             )
