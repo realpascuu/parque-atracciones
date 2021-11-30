@@ -22,84 +22,112 @@ from common.Usuario import Usuario
 ## LLAMADA A Visitor
 LLAMADA_VISITOR = "python3 FWQ_Visitor.py <host>:<port_registry> <host>:<port_kafka>"
 
+class PasswordException(Exception):
+    def __init__(self, mensaje):
+        self.mensaje = mensaje
+    pass
+
+def menu():
+    print("BIENVENIDO AL PARQUE DE ATRACCIONES")
+    print("""------------- MENÚ ------------------------
+    1. Registro
+    2. Inicio Sesión
+    3. Editar usuario
+    0. Salir
+        """)
+    return input("¿Qué desea hacer? ")
+
+def errorInput():
+    print('VALOR INCORRECTO!')
+    print('Introduce 1 para registrarte')
+    print('Introduce 2 para iniciar sesión')
+    print('Introduce 3 para editar usuario')
+
+def crearPassword():
+    password = getpass("Introduce contraseña: ")
+    password2 = getpass("Vuelve a introducir la contraseña: ")
+    if (password != password2):
+        raise PasswordException("Error! Las contraseñas no coinciden")
+    return password
+
+async def registro(channel):
+    stub = register_pb2_grpc.RegisterStub(channel)
+    print("----------REGISTRO----------")
+    nuevoUsername = input("Introduce usuario: ")
+    # comprobar contraseña
+    correcto = False
+    while(not correcto):
+        try:
+            password = crearPassword()
+            correcto = True
+        except PasswordException as e:
+            print(e.mensaje)
+
+    nuevoAlias = nuevoUsername[0:2]
+    try:
+        registro = await stub.doRegister(register_pb2.UserRequest(username=nuevoUsername, password=password, id=nuevoAlias))
+        print(registro.message)
+    except Exception as e:
+        raise Exception
+
+async def tryLogin(channel):
+    stub = register_pb2_grpc.LoginStub(channel)
+    print("-------------LOGIN-------------")
+    posibleUsername = input("Introduce usuario: ")
+    password = getpass("Introduce contraseña: ")
+    try:                    
+        login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=password))
+        print(login.message)
+        if login.message == "Autentificación exitosa!!":
+            return login
+    except Exception as e:
+        raise Exception
+
+async def editarUsuario(channel):
+    print("-------------EDITAR USUARIO-------------")
+    print("Necesitamos que confirmes tus credenciales para continuar...")
+    try:
+        login = await tryLogin(channel)
+        print(login.message)
+        if login.message == "Autentificación exitosa!!":
+            opUpdate = input("Quieres modificar tus datos? (y/n) ")
+            if opUpdate == 'y':
+                stubUpdate = register_pb2_grpc.UpdateStub(channel)
+                newUser = input("Introduce usuario nuevo: ")
+                newPass = getpass("Introduce nueva contraseña: ")
+                update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=login.username,newUsername=newUser,password=newPass))
+                print(update.message)
+    except Exception as e:
+        raise Exception
+
 ## FUNCIÓN PARA ESTABLECER CONEXIÓN GRPC
 async def run(host, port):   
     async with grpc.aio.insecure_channel(host + ':' + port) as channel:    
         seguir = True
         # sigue bucle hasta que se hace login o se quiere salir de la app
         while seguir:
-            print("BIENVENIDO AL PARQUE DE ATRACCIONES")
-            print("""------------- MENÚ ------------------------
-            1. Registro
-            2. Inicio Sesión
-            3. Editar usuario
-            0. Salir
-                """)
-            op = input("¿Qué desea hacer? ")
+            op = menu()
             try:    
                 if int(op) == 1:
-                    stub = register_pb2_grpc.RegisterStub(channel)
-                    print("----------REGISTRO----------")
-                    password = ""
-                    password2 = "a"
-                    nuevoUsername = input("Introduce usuario: ")
-                    while(password != password2):                    
-                        password = getpass("Introduce contraseña: ")
-                        password2 = getpass("Vuelve a introducir la contraseña: ")
-                        if (password != password2):
-                            print("Error! Las contraseñas no coinciden")
-                    nuevoAlias = nuevoUsername[0:2]
-                    try:
-                        registro = await stub.doRegister(register_pb2.UserRequest(username=nuevoUsername, password=password, id=nuevoAlias))
-                        print(registro.message)
-                    except Exception as e:
-                        print("No se ha podido establecer conexión con " + host + ":" + port)
-                elif int(op) == 2:    
-                    print("-------------LOGIN-------------")
-                    posibleUsername = input("Introduce usuario: ")
-                    password = getpass("Introduce contraseña: ")
-
-                    stub = register_pb2_grpc.LoginStub(channel)
-                    try:
-                        login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=password))
-                        print(login.message)
-                        if login.message == "Autentificación exitosa!!":
-                            return login
-                    except Exception as e:
-                        print("No se ha podido establecer conexión con " + host + ":" + port)
+                    # REGISTRO
+                    registro(channel)
+                elif int(op) == 2:
+                    # LOGIN
+                    return tryLogin(channel)
                 elif int(op) == 3:
-                    print("-------------EDITAR USUARIO-------------")
-                    loginUsername = input("Introduce usuario: ")
-                    password = getpass("Introduce contraseña: ")
-                    
-                    try:
-                        stub = register_pb2_grpc.LoginStub(channel)
-                        login = await stub.doLogin(register_pb2.UserPedido(username=loginUsername, password=password))
-                        print(login.message)
-                        if login.message == "Autentificación exitosa!!":
-                            opUpdate = input("Quieres modificar tus datos? (y/n) ")
-                            if opUpdate == 'y':
-                                stubUpdate = register_pb2_grpc.UpdateStub(channel)
-                                newUser = input("Introduce usuario nuevo: ")
-                                newPass = getpass("Introduce nueva contraseña: ")
-                                update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=loginUsername,newUsername=newUser,password=newPass))
-                                print(update.message)
-                    except Exception as e:
-                        print("No se ha podido establecer conexión con " + host + ":" + port)
+                    # EDITAR USUARIO
+                    editarUsuario(channel)
                 elif int(op) == 0:
+                    # SALIR
                     exit()
                 # caso de un número distinto a los del menú
                 else:
-                    print('VALOR INCORRECTO!')
-                    print('Introduce 1 para registrarte')
-                    print('Introduce 2 para iniciar sesión')
-                    print('Introduce 3 para editar usuario')
+                    errorInput()    
             # caso de una cadena
             except ValueError:
-                print('VALOR INCORRECTO!')
-                print('Introduce 1 para registrarte')
-                print('Introduce 2 para iniciar sesión')
-                print('Introduce 3 para editar usuario')
+                errorInput()
+            except Exception:
+                print("No se ha podido establecer conexión con " + host + ":" + port)
 
 def buscarAtraccion(usuario, mapa):
     encontrado = False
