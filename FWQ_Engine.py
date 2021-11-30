@@ -8,13 +8,10 @@ import random
 from time import sleep
 import signal
 
-import array
-
 sys.path.insert(0, './protosWait')
 
 import numpy as np
 import asyncio
-import logging
 import mysql.connector
 import grpc
 
@@ -31,31 +28,39 @@ usuariosDentro = []
 ## LLAMADA A ENGINE
 LLAMADA_ENGINE = "python3 FWQ_Engine.py <host>:<port_kafka> <nummax_visitantes> <host>:<port_waitingserver>"
 
+def datosParaEnviarPorCanal(atracciones):
+    atraccionesNumpy = np.zeros((len(atracciones),5), dtype=np.int64)
+
+    for x in range(0, len(atracciones)):
+        atraccionesNumpy[x, 0] = atracciones[x].id
+        atraccionesNumpy[x, 1] = atracciones[x].timec
+        atraccionesNumpy[x, 2] = atracciones[x].nvisitors
+        atraccionesNumpy[x, 3] = atracciones[x].coordenadas.x
+        atraccionesNumpy[x, 4] = atracciones[x].coordenadas.y
+    return atraccionesNumpy
+
 async def run(host, port):
     async with grpc.aio.insecure_channel(str(host) + ':' + str(port)) as channel:
         global atracciones
         stub = waitingTime_pb2_grpc.WaitingTimeStub(channel)
         
-        atraccionesNumpy = np.zeros((len(atracciones),5), dtype=np.int64)
-
-        for x in range(0, len(atracciones)):
-            atraccionesNumpy[x, 0] = atracciones[x].id
-            atraccionesNumpy[x, 1] = atracciones[x].timec
-            atraccionesNumpy[x, 2] = atracciones[x].nvisitors
-            atraccionesNumpy[x, 3] = atracciones[x].coordenadas.x
-            atraccionesNumpy[x, 4] = atracciones[x].coordenadas.y
-
+        # cambiar datos para poder pasarlos en bytes
+        atraccionesNumpy = datosParaEnviarPorCanal(atracciones)
         byteatraccion = atraccionesNumpy.tobytes()
         (m, n) = atraccionesNumpy.shape
+
         conexion = False
         while conexion == False:
-            try: 
+            try:
+                # intentar conexión con Registry 
                 user = await stub.giveTime(waitingTime_pb2.EngineRequest(atracciones=byteatraccion, numFilas=m))
+                # Conexión realizada
                 conexion = True
             except Exception as e:
+                # error conexión con Servidor
                 print("No se ha podido establecer conexión con Servidor Tiempos espera en " + str(host) + ':' + str(port))
                 sleep(5)
-
+        # Transfromar datos
         atraUpdate = np.frombuffer(user.atracciones, dtype=np.int64).reshape(user.numFilas, 2)
         return atraUpdate
 
@@ -70,9 +75,9 @@ def comunicarTiempoEspera(mapa, host, port):
     global atracciones
     while True:
         sleep(random.randint(3,8))
-        # HARÍA COMUNICACIÓN CON TIEMPO DE ESPERA
+        # COMUNICACIÓN CON TIEMPO DE ESPERA
         updateAtrac = asyncio.run(run(host, port))
-        # almacenarlos en atracciones
+        # almacenarlos en atracciones [0]=ID, [1]=TIEMPOS_ESPERA
         for upAtr in updateAtrac:
             for atraccion in atracciones:
                 if upAtr[0] ==  atraccion.id:
@@ -80,16 +85,20 @@ def comunicarTiempoEspera(mapa, host, port):
                     continue
             
         dibujarAtracciones(mapa, atracciones)
+        # soluciona error que el hilo se adelante e intente enviar mapa cuando no se ha producido el producer
         if 'producerMapa' in globals():
             enviarMapa(mapa)
 
 def entradaUsuario(usuario):
     global contadorVisitantes
     print("Bienvenido " + usuario['username'] + "!")
+    # entrada aleatoria usuario
     usuario['x'] = random.randint(0, 19)
     usuario['y'] = random.randint(0, 19)
     contadorVisitantes += 1
+    # añadimos usuario en el mapa pintado
     mapa[usuario['x'], usuario['y']] = usuario['alias']
+    # envío de mapa
     producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuario)
 
 # sacamos usuario de lista de usuarios dentro del parque
@@ -106,6 +115,16 @@ def buscarUsuario(usuariosDentro, username):
             return True
     
     return False
+
+def enviarMensajeUsuarioCola(usuario, usuariosCola, pos):
+    usuarioCola = {
+        'alias': usuario['alias'],
+        'username' : usuario['username'],
+        'x' : usuario['x'],
+        'y' : usuario['y'],
+        'cola' : 'Estás el número ' + str(pos) + ' en la cola!'
+    }
+    producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuarioCola)
 
 def colaEntrada(mapa):
     global contadorVisitantes
@@ -125,39 +144,33 @@ def colaEntrada(mapa):
                 # restamos contador porque se ha ido uno y eliminamos
                 contadorVisitantes -= 1
                 sacarUsuario(usuariosDentro, usuario['username'])
+
+                # meter usuarios de la cola hasta que no hayan más o no quepan 
+                while (not len(usuariosCola) == 0) and contadorVisitantes < max_visitantes:
+                    entradaUsuario(usuariosCola[0])
+                    usuariosDentro.append(usuariosCola[0])
+                    usuariosCola.pop(0)
             else:
                 # saca usuario en caso de que esté en la cola
                 sacarUsuario(usuariosCola, usuario['username'])
-            # meter usuarios de la cola hasta que no hayan más o no quepan 
-            while (not len(usuariosCola) == 0) and contadorVisitantes < max_visitantes:
-                entradaUsuario(usuariosCola[0])
-                usuariosDentro.append(usuariosCola[0])
-                usuariosCola.pop(0)
+            # enviar mensaje de avance de cola
+            i = 0
+            for usuariosCola in usuario:
+                i += 1
+                enviarMensajeUsuarioCola(usuario, usuariosCola, i)
         # detectar duplicados de usuarios
-        elif not 'salida' in usuario.keys() and buscarUsuario(usuariosDentro, usuario['username']):
+        elif buscarUsuario(usuariosDentro, usuario['username']):
             print(usuario['username'] + " ya está dentro!!")
         # usuario cabe y aún no está dentro
-        elif not 'salida' in usuario.keys() and contadorVisitantes < max_visitantes and usuario['x'] == -1:
+        elif contadorVisitantes < max_visitantes and usuario['x'] == -1:
             entradaUsuario(usuario)
             usuariosDentro.append(usuario)
         # usuario no cabe y aún no está dentro
-        elif not 'salida' in usuario.keys() and contadorVisitantes >= max_visitantes and usuario['x'] == -1:
+        elif contadorVisitantes >= max_visitantes and usuario['x'] == -1:
             if not buscarUsuario(usuariosCola, usuario['username']):
                 usuariosCola.append(usuario)
                 # manda mensaje de que está dentro de la cola
-                usuarioCola = {
-                    'alias': usuario['alias'],
-                    'username' : usuario['username'],
-                    'x' : usuario['x'],
-                    'y' : usuario['y'],
-                    'cola' : 'Estás el número ' + str(len(usuariosCola)) + ' en la cola!'
-                }
-                producerEntrada.send(topic=Kafka.TOPIC_PASEN, value=usuarioCola)
-        # mostrar usuarios dentro y en cola
-        logging.info("Usuarios dentro: ")
-        logging.info(usuariosDentro)
-        logging.info("Usuarios en cola: ")
-        logging.info(usuariosCola)
+                enviarMensajeUsuarioCola(usuario, usuariosCola, len(usuariosCola))
         # aceptar mensaje como leído
         consumerEntrada.commit()
 

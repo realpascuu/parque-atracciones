@@ -13,7 +13,7 @@ from protosRegistry import register_pb2, register_pb2_grpc
 
 from concurrent import futures
 
-host_BD = 'localhost'
+host_BD = '192.168.25.1'
 user_BD = 'admin'
 passwd_BD = 'burguerking'
 database_BD = 'parque'
