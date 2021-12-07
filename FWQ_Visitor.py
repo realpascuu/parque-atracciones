@@ -77,9 +77,7 @@ async def tryLogin(channel):
     password = getpass("Introduce contraseña: ")
     try:                    
         login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=password))
-        print(login.message)
-        if login.message == "Autentificación exitosa!!":
-            return login
+        return login
     except Exception as e:
         raise Exception
 
@@ -110,13 +108,16 @@ async def run(host, port):
             try:    
                 if int(op) == 1:
                     # REGISTRO
-                    registro(channel)
+                    await registro(channel)
                 elif int(op) == 2:
                     # LOGIN
-                    return tryLogin(channel)
+                    login = await tryLogin(channel)
+                    print(login.message)
+                    if login.message == "Autentificación exitosa!!":
+                        return login
                 elif int(op) == 3:
                     # EDITAR USUARIO
-                    editarUsuario(channel)
+                    await editarUsuario(channel)
                 elif int(op) == 0:
                     # SALIR
                     exit()
@@ -302,7 +303,7 @@ if __name__ == '__main__':
     alias = datosLogin.alias
 
     ## INICIO DE SESIÓN CORRECTO
-    usuario = Usuario(username, alias)
+    usuario = Usuario(username, alias, Coordenadas2D(-1, -1))
     # DEFINIR CONSUMIDOR Y PRODUCTOR KAFKA ENTRADA 
     producer = Kafka.definirProductorJSON(host_broker, port_broker)
     consumerEntrada = Kafka.definirConsumidorJSON(host_broker, port_broker, Kafka.TOPIC_PASEN, 'latest', 'cola_visitor')
@@ -315,7 +316,7 @@ if __name__ == '__main__':
     hiloEntrada.daemon = True
     hiloEntrada.start()
     
-    # informar del intento de entrada
+    # informar del intento de entrada cada 5 seg
     enviarDatos(usuario, Kafka.TOPIC_INTENTO_ENTRADA)
 
     # esperar a que termine el hilo para continuar ejecución

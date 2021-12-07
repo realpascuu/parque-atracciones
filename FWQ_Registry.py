@@ -13,7 +13,7 @@ from protosRegistry import register_pb2, register_pb2_grpc
 
 from concurrent import futures
 
-host_BD = '192.168.25.1'
+host_BD = 'localhost'
 user_BD = 'admin'
 passwd_BD = 'burguerking'
 database_BD = 'parque'
@@ -162,7 +162,7 @@ if __name__ == '__main__':
         print(LLAMADA_REGISTRY)
         exit()
     
-    #logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
     signal.signal(signal.SIGINT, signal_handler)
 
     loop = asyncio.get_event_loop()

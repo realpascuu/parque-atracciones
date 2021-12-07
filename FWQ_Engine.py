@@ -8,16 +8,19 @@ import random
 from time import sleep
 import signal
 
+from common.Usuario import Usuario
+
 sys.path.insert(0, './protosWait')
 
 import numpy as np
 import asyncio
 import mysql.connector
 import grpc
+import logging
 
 from protosWait import waitingTime_pb2, waitingTime_pb2_grpc 
 
-host_BD = '192.168.25.1'
+host_BD = 'localhost'
 user_BD = 'admin'
 passwd_BD = 'burguerking'
 database_BD = 'parque'
@@ -25,8 +28,30 @@ database_BD = 'parque'
 atracciones = []
 contadorVisitantes = 0
 usuariosDentro = []
+mydb = None
 ## LLAMADA A ENGINE
 LLAMADA_ENGINE = "python3 FWQ_Engine.py <host>:<port_kafka> <nummax_visitantes> <host>:<port_waitingserver>"
+
+def updateUsuario(username, x, y):
+    global mydb
+    query = 'UPDATE usuarios SET x = ' + str(x) + ' , y = ' + str(y) + ' WHERE username = \'' + str(username) + '\''
+    mycursor = mydb.cursor()
+    mycursor.execute(query)
+
+    mydb.commit()
+
+    logging.info(mycursor.rowcount, " usuarios afectados")
+
+def updateAtraccion(id, tiempoEspera):
+    global mydb
+    query = 'UPDATE atraccion SET tiempo_espera = ' + str(tiempoEspera) + ' WHERE id = ' + str(id)
+    mycursor = mydb.cursor()
+    mycursor.execute(query)
+
+    mydb.commit()
+
+    logging.info(mycursor.rowcount, " atracciones afectadas")
+
 
 def datosParaEnviarPorCanal(atracciones):
     atraccionesNumpy = np.zeros((len(atracciones),5), dtype=np.int64)
@@ -82,6 +107,7 @@ def comunicarTiempoEspera(mapa, host, port):
             for atraccion in atracciones:
                 if upAtr[0] ==  atraccion.id:
                     atraccion.tiempoEspera = upAtr[1]
+                    updateAtraccion(atraccion.id, atraccion.tiempoEspera)
                     continue
             
         dibujarAtracciones(mapa, atracciones)
@@ -91,11 +117,12 @@ def comunicarTiempoEspera(mapa, host, port):
 
 def entradaUsuario(usuario):
     global contadorVisitantes
-    print("Bienvenido " + usuario['username'] + "!")
+    print('Bienvenido ' + usuario['username'] + '!')
     # entrada aleatoria usuario
     usuario['x'] = random.randint(0, 19)
     usuario['y'] = random.randint(0, 19)
     contadorVisitantes += 1
+    updateUsuario(usuario['username'], usuario['x'], usuario['y'])
     # añadimos usuario en el mapa pintado
     mapa[usuario['x'], usuario['y']] = usuario['alias']
     # envío de mapa
@@ -103,20 +130,22 @@ def entradaUsuario(usuario):
 
 # sacamos usuario de lista de usuarios dentro del parque
 def sacarUsuario(usuariosDentro, username):
-    for i in range(0, len(usuariosDentro)):
-        if usuariosDentro[i]['username'] == username:
-            usuariosDentro.pop(i)
-            break
+    if len(usuariosDentro) > 0:
+        for i in range(len(usuariosDentro)):
+            if usuariosDentro[i]['username'] == username:
+                usuariosDentro.pop(i)
+                break
 
 # buscamos usuario en lista de usuarios dentro del parque
 def buscarUsuario(usuariosDentro, username):
-    for i in range(0, len(usuariosDentro)):
-        if usuariosDentro[i]['username'] == username:
-            return True
-    
+    if len(usuariosDentro) > 0:
+        for i in range(len(usuariosDentro)):
+            if usuariosDentro[i]['username'] == username:
+                return True
+        
     return False
 
-def enviarMensajeUsuarioCola(usuario, usuariosCola, pos):
+def enviarMensajeUsuarioCola(usuario, pos):
     usuarioCola = {
         'alias': usuario['alias'],
         'username' : usuario['username'],
@@ -132,6 +161,7 @@ def colaEntrada(mapa):
     global usuariosDentro
 
     for message in consumerEntrada:
+        print(usuariosCola)
         usuario = message.value
         if 'salida' in usuario.keys():
             if buscarUsuario(usuariosDentro, usuario['username']):
@@ -140,24 +170,29 @@ def colaEntrada(mapa):
                     for j in range(0, 20):
                         if mapa[i, j] == usuario['alias']:
                             mapa[i, j] = '.'
-                print("Hasta pronto " + message.value['username'] + "!")
+                print('Hasta pronto ' + message.value['username'] + '!')
+                # sacar en bd
+                updateUsuario(usuario['username'], -1 ,-1)
                 # restamos contador porque se ha ido uno y eliminamos
-                contadorVisitantes -= 1
+                if contadorVisitantes > 0:
+                    contadorVisitantes -= 1
                 sacarUsuario(usuariosDentro, usuario['username'])
 
-                # meter usuarios de la cola hasta que no hayan más o no quepan 
+                # meter usuarios de la cola hasta que no hayan más o no quepan
+                print(len(usuariosCola), contadorVisitantes)
                 while (not len(usuariosCola) == 0) and contadorVisitantes < max_visitantes:
                     entradaUsuario(usuariosCola[0])
                     usuariosDentro.append(usuariosCola[0])
                     usuariosCola.pop(0)
             else:
                 # saca usuario en caso de que esté en la cola
+                updateUsuario(usuario['username'], -1 ,-1)
                 sacarUsuario(usuariosCola, usuario['username'])
             # enviar mensaje de avance de cola
             i = 0
-            for usuariosCola in usuario:
+            for usuario in usuariosCola:
                 i += 1
-                enviarMensajeUsuarioCola(usuario, usuariosCola, i)
+                enviarMensajeUsuarioCola(usuario, i)
         # detectar duplicados de usuarios
         elif buscarUsuario(usuariosDentro, usuario['username']):
             print(usuario['username'] + " ya está dentro!!")
@@ -168,9 +203,10 @@ def colaEntrada(mapa):
         # usuario no cabe y aún no está dentro
         elif contadorVisitantes >= max_visitantes and usuario['x'] == -1:
             if not buscarUsuario(usuariosCola, usuario['username']):
+                print('usuario en cola')
                 usuariosCola.append(usuario)
                 # manda mensaje de que está dentro de la cola
-                enviarMensajeUsuarioCola(usuario, usuariosCola, len(usuariosCola))
+                enviarMensajeUsuarioCola(usuario, len(usuariosCola))
         # aceptar mensaje como leído
         consumerEntrada.commit()
 
@@ -190,10 +226,6 @@ def obtieneMovimiento(mapa):
     for message in consumerMov:
         ## OBTIENE EL NUEVO MAPA
         usuario = message.value
-        # En caso de fallo de engine, vuelve a obtener los usuarios que se encontraban dentro del parque
-        if not buscarUsuario(usuariosDentro, usuario['username']):
-            usuariosDentro.append(usuario)
-            contadorVisitantes += 1
         # eliminar alias en el mapa
         for i in range(0,20):
             for j in range(0, 20):
@@ -201,6 +233,8 @@ def obtieneMovimiento(mapa):
                     mapa[i, j] = '.'
         # añadir en el mapa el movimiento actual
         mapa[usuario['x'], usuario['y']] = usuario['alias']
+        # actualizamos en base de datos
+        updateUsuario(usuario['username'], usuario['x'], usuario['y'])
         # actualizar datos de colas de espera
         dibujarAtracciones(mapa, atracciones)
         ## ENVÍA EL MAPA A LOS USUARIOS
@@ -213,8 +247,40 @@ def signal_handler(signal, frame):
     sleep(1)
     sys.exit(0)
 
+def consultaAtracciones(atracciones):
+    global mydb
+    query = "SELECT * FROM `atraccion`"
+    mycursor = mydb.cursor()
+
+    mycursor.execute(query)
+    data = mycursor.fetchall()
+
+    for x in data:
+        atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4]), x[5]))
+
+def consultaUsuarios(usuariosDentro):
+    global mydb
+    query = "SELECT username, alias, x, y FROM `usuarios`"
+
+    mycursor = mydb.cursor()
+    mycursor.execute(query)
+    data = mycursor.fetchall()
+
+    # consulta si hay alguno aún dentro del mapa
+    for x in data:
+        if x[2] != -1:
+            usuario = {
+                'alias': x[1],
+                'username' : x[0],
+                'x' : x[2],
+                'y' : x[3]
+            }
+            usuariosDentro.append(usuario)
+
 def consultaBD():
     global atracciones
+    global usuariosDentro
+    global mydb
     conexion = False
     while conexion == False:
         try:
@@ -225,15 +291,8 @@ def consultaBD():
                 database=database_BD)
 
             conexion = True
-            mycursor = mydb.cursor()
-            
-            query = "SELECT * FROM `atraccion`"
-
-            mycursor.execute(query)
-            data = mycursor.fetchall()
-
-            for x in data:
-                atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4])))
+            consultaAtracciones(atracciones)
+            consultaUsuarios(usuariosDentro)
         except Exception as e:
             print(e)
             sleep(5)

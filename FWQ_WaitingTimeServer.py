@@ -31,7 +31,7 @@ class WaitingTime(waitingTime_pb2_grpc.WaitingTimeServicer):
         datosEngine = []
 
         for x in atraccionesEngine:
-            datosEngine.append(Atraccion(x[0],x[1],x[2], Coordenadas2D(x[3],x[4])))
+            datosEngine.append(Atraccion(x[0],x[1],x[2], Coordenadas2D(x[3],x[4]), -1))
 
         datos = []
 
@@ -56,7 +56,7 @@ def obtieneInfo():
                     atraccion.cola = int(message.value['cola'])
                     exists = True
             if not exists:
-                nuevaAtraccion = Atraccion(int(message.value['id']), -1, -1, Coordenadas2D(-1,-1))
+                nuevaAtraccion = Atraccion(int(message.value['id']), -1, -1, Coordenadas2D(-1,-1), -1)
                 nuevaAtraccion.cola = int(message.value['cola'])
                 atracciones.append(nuevaAtraccion)
             consumer.commit()
