@@ -1,6 +1,7 @@
 import sys
 import mysql.connector
 
+
 sys.path.insert(0, './protosRegistry')
 
 import asyncio
@@ -130,15 +131,48 @@ class Update(register_pb2_grpc.UpdateServicer):
             message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
             return register_pb2.UserUpdate(message=message)
 
+#Clase para interceptar la autentificación
+class AuthInterceptor(grpc.ServerInterceptor):
+    def __init__(self, key):
+        self._valid_metadata = ('rpc-auth-header', key)
+
+        def deny(_, context):
+            context.abort(grpc.StatusCode.UNAUTHENTICATED, 'Invalid key')
+
+        self._deny = grpc.unary_unary_rpc_method_handler(deny)
+
+    def intercept_service(self, continuation, handler_call_details):
+        meta = handler_call_details.invocation_metadata
+
+        if meta and meta[0] == self._valid_metadata:
+            return continuation(handler_call_details)
+        else:
+            return self._deny
+
 async def serve(port) -> None:
-    server = grpc.aio.server()
+    # creamos el servidor
+    server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=10),
+        interceptors=(AuthInterceptor('access_key'),)
+    )
+    # abrimos la clave privada
+    with open('server.key', 'rb') as f:
+        private_key = f.read()
+    # avrimos el certificado
+    with open('server.crt', 'rb') as f:
+        certificate_chain = f.read()
+    
+    # obtenemos las credenciales
+    server_credentials = grpc.ssl_server_credentials(( (private_key, certificate_chain), ))
+    server.add_secure_port('localhost:443', server_credentials)
     register_pb2_grpc.add_RegisterServicer_to_server(Register(), server)
     register_pb2_grpc.add_LoginServicer_to_server(Login(), server)
     register_pb2_grpc.add_UpdateServicer_to_server(Update(), server)
+    
+    
     listen_addr = '[::]:' + port
-    server.add_insecure_port(listen_addr)
     logging.info("Starting server on %s", listen_addr)
-    await server.start()
+    await server.start() 
 
 # Módulo para apagar correctamente el registry
     async def server_apagado():
@@ -161,7 +195,7 @@ if __name__ == '__main__':
         print(LLAMADA_REGISTRY)
         exit()
     
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(filename='eventos.log',filemode='w', level=logging.INFO)
     signal.signal(signal.SIGINT, signal_handler)
 
     loop = asyncio.get_event_loop()
