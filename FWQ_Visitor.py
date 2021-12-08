@@ -100,7 +100,7 @@ async def editarUsuario(channel):
 
 ## FUNCIÓN PARA ESTABLECER CONEXIÓN GRPC
 async def run(host, port):   
-    async with grpc.aio.insecure_channel(host + ':' + port) as channel:    
+    async with grpc.aio.secure_channel(host + ':' + port, credentials) as channel:    
         seguir = True
         # sigue bucle hasta que se hace login o se quiere salir de la app
         while seguir:
