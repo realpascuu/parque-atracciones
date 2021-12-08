@@ -120,7 +120,6 @@ class Update(register_pb2_grpc.UpdateServicer):
             queryUser = "UPDATE `usuarios` SET `username`= " + "\'" + request.newUsername + "\'" + ", `password`= " + "\'" + request.password + "\'" + " WHERE `usuarios`.`username` = " + "\'" + request.oldUsername + "\'"
             try:
                 mycursor.execute(queryUser)
-                # essage = "Usuario actualizado correctamente"
             except mysql.connector.Error as err:
                 logging.info("Error: No se puede actualizar el usuario")
                 message = "Error: No se puede actualizar el usuario"
