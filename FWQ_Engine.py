@@ -8,6 +8,9 @@ import random
 from time import sleep
 import signal
 
+import requests
+from requests.exceptions import RequestException
+
 from common.Usuario import Usuario
 
 sys.path.insert(0, './protosWait')
@@ -20,37 +23,86 @@ import logging
 
 from protosWait import waitingTime_pb2, waitingTime_pb2_grpc 
 
+# variables BD MySQL
 host_BD = 'localhost'
 user_BD = 'admin'
 passwd_BD = 'burguerking'
 database_BD = 'parque'
 
+## variables globales
 atracciones = []
 contadorVisitantes = 0
 usuariosDentro = []
 mydb = None
+""" 
+ZONAS:
+1. 0-9, 0-9 
+2. 10-19, 0-9
+3. 0-9, 10-19
+4. 10-19, 10-19
+ """
+zonas = []
 ## LLAMADA A ENGINE
 LLAMADA_ENGINE = "python3 FWQ_Engine.py <host>:<port_kafka> <nummax_visitantes> <host>:<port_waitingserver>"
 
+API_KEY = "47fe4dc689d72a4666d016f08f81dbf3"
+CITYS_NAME = ['Callosa de Segura', 'Buenos Aires', 'Brasilia', 'El Cairo', 'Jeddah']
+GRADOS_KELVIN = 273.15
+
+## DEFINE LA CADENA DE LLAMADA A LA API
+def cadenaAPI(city):
+    return "https://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + API_KEY
+
+# CONVERSIÓN DE KELVIN A GRADOS CENTÍGRADOS
+def convertirKelvinAGrados(kelvin):
+    return kelvin - GRADOS_KELVIN
+
+# LLAMADA A LA API, DEVUELVE LA TEMPERATURA DE LA CIUDAD
+def conectarAPI(city):
+    cadenaBusqueda = cadenaAPI(city)
+    try:
+        respuesta = requests.get(cadenaBusqueda).json()
+    except RequestException as e:
+        print(e)
+    
+    return round(convertirKelvinAGrados(respuesta['main']['temp']), 1)
+
+def definirZona(x, y):
+    if x < 10:
+        if y < 10:
+            return 1
+        else:
+            return 3
+    else:
+        if y < 10:
+            return 2
+        else:
+            return 4
+
 def updateUsuario(username, x, y):
     global mydb
-    query = 'UPDATE usuarios SET x = ' + str(x) + ' , y = ' + str(y) + ' WHERE username = \'' + str(username) + '\''
-    mycursor = mydb.cursor()
-    mycursor.execute(query)
+    try:
+        query = 'UPDATE usuarios SET x = ' + str(x) + ' , y = ' + str(y) + ' WHERE username = \'' + str(username) + '\''
+        mycursor = mydb.cursor()
+        mycursor.execute(query)
 
-    mydb.commit()
+        mydb.commit()
 
-    logging.info(mycursor.rowcount, " usuarios afectados")
+        logging.info(mycursor.rowcount, " usuarios afectados")
+    except Exception:
+        print("No se puedo establecer conexión con MySql")
 
 def updateAtraccion(id, tiempoEspera):
     global mydb
     query = 'UPDATE atraccion SET tiempo_espera = ' + str(tiempoEspera) + ' WHERE id = ' + str(id)
-    mycursor = mydb.cursor()
-    mycursor.execute(query)
+    try:
+        mycursor = mydb.cursor()
+        mycursor.execute(query)
 
-    mydb.commit()
-
-    logging.info(mycursor.rowcount, " atracciones afectadas")
+        mydb.commit()
+        logging.info(mycursor.rowcount, " atracciones afectadas")
+    except Exception:
+        print("No se puedo establecer conexión con MySql")
 
 
 def datosParaEnviarPorCanal(atracciones):
@@ -105,7 +157,7 @@ def comunicarTiempoEspera(mapa, host, port):
         # almacenarlos en atracciones [0]=ID, [1]=TIEMPOS_ESPERA
         for upAtr in updateAtrac:
             for atraccion in atracciones:
-                if upAtr[0] ==  atraccion.id:
+                if upAtr[0] ==  atraccion.id and not atraccion.block:
                     atraccion.tiempoEspera = upAtr[1]
                     updateAtraccion(atraccion.id, atraccion.tiempoEspera)
                     continue
@@ -117,10 +169,16 @@ def comunicarTiempoEspera(mapa, host, port):
 
 def entradaUsuario(usuario):
     global contadorVisitantes
+    global zonas
     print('Bienvenido ' + usuario['username'] + '!')
-    # entrada aleatoria usuario
-    usuario['x'] = random.randint(0, 19)
-    usuario['y'] = random.randint(0, 19)
+    # entrada aleatoria usuario no entrando en posición no accesible
+    posCorrecta = False
+    while(not posCorrecta):
+        usuario['x'] = random.randint(0, 19)
+        usuario['y'] = random.randint(0, 19)
+        zona = definirZona(usuario['x'], usuario['y'])
+        posCorrecta = not zonas[zona - 1]
+
     contadorVisitantes += 1
     updateUsuario(usuario['username'], usuario['x'], usuario['y'])
     # añadimos usuario en el mapa pintado
@@ -225,6 +283,7 @@ def obtieneMovimiento(mapa):
 
     for message in consumerMov:
         ## OBTIENE EL NUEVO MAPA
+        print("mov")
         usuario = message.value
         # eliminar alias en el mapa
         for i in range(0,20):
@@ -249,6 +308,7 @@ def signal_handler(signal, frame):
 
 def consultaAtracciones(atracciones):
     global mydb
+    global zonas
     query = "SELECT * FROM `atraccion`"
     mycursor = mydb.cursor()
 
@@ -256,7 +316,10 @@ def consultaAtracciones(atracciones):
     data = mycursor.fetchall()
 
     for x in data:
-        atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4]), x[5]))
+        atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4]), -1))
+        zona = definirZona(atracciones[-1].coordenadas.x, atracciones[-1].coordenadas.y)
+        atracciones[-1].block = zonas[zona - 1]
+        
 
 def consultaUsuarios(usuariosDentro):
     global mydb
@@ -297,6 +360,15 @@ def consultaBD():
             print(e)
             sleep(5)
 
+# definir temperaturas de las cuatro zonas del parque para ver si son accesibles
+def zonasParque():
+    global zonas
+    for i in range(4):
+        j = random.randint(0, len(CITYS_NAME)-1)
+        resultado = conectarAPI(CITYS_NAME[j])
+        zonas.append(not(resultado >= 20 and resultado <= 30))
+
+
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     #logging.basicConfig(level=logging.INFO)
@@ -319,6 +391,8 @@ if __name__ == '__main__':
         print(LLAMADA_ENGINE)
         exit()
 
+    # conectar con API WEATHER para saber las zonas que están block o no
+    zonasParque()
     # CARGAR MAPA DE LA BD (HACER LO SIGUIENTE)
     # 1 Carga atracciones de la BD
     hiloConsultaBD = threading.Thread(

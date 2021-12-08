@@ -142,7 +142,7 @@ def buscarAtraccion(usuario, mapa):
             for y in range(i,20):
                 try:
                     # Probar si lo que se encuentra en el mapa es una atracción
-                    if int(mapa[x,y]) <= 60:
+                    if int(mapa[x,y]) >= 0 and int(mapa[x,y]) <= 60:
                         # Atracción tiene tiempo de espera menos de 60
                         (x1,y1) = (x,y) 
                         encontrado = True
