@@ -8,7 +8,8 @@ import asyncio
 import logging
 from time import sleep
 import signal
-
+import hashlib
+import datatime
 import grpc
 from protosRegistry import register_pb2, register_pb2_grpc
 
@@ -19,6 +20,7 @@ user_BD = 'admin'
 passwd_BD = 'burguerking'
 database_BD = 'parque'
 
+LOG_FILENAME = datetime
 # Ejecución Registry
 LLAMADA_REGISTRY = "python3 FWQ_Registry.py <puerto_escucha>"
 
@@ -93,7 +95,9 @@ class Login(register_pb2_grpc.LoginServicer):
                 data = mycursor.fetchall()
                 data = data[0][0]
                 
-                if data==request.password:
+                encodedPassword = data.encode()
+                passHash = hashlib.sha256(encodedPassword).hexdigest()
+                if passHash==request.password:
                     message ="Autentificación exitosa!!"
                     logging.info("Se ha iniciado sesión con el usuario " + request.username)
                 else:

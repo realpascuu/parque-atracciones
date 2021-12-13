@@ -6,13 +6,12 @@ import threading
 from numpy import *
 import random
 import signal
-
+import hashlib
 import sys
 
 sys.path.insert(0, './protosRegistry')
 
 import asyncio
-import logging
 from getpass import getpass
 import grpc
 from protosRegistry import register_pb2, register_pb2_grpc
@@ -48,7 +47,10 @@ def crearPassword():
     password2 = getpass("Vuelve a introducir la contraseña: ")
     if (password != password2):
         raise PasswordException("Error! Las contraseñas no coinciden")
-    return password
+    # Se hace el hash a la contraseña introducida por el usuario
+    encodedPassword = password.encode()
+    passHash = hashlib.sha256(encodedPassword).hexdigest()
+    return passHash
 
 async def registro(channel):
     stub = register_pb2_grpc.RegisterStub(channel)
@@ -93,7 +95,9 @@ async def editarUsuario(channel):
                 stubUpdate = register_pb2_grpc.UpdateStub(channel)
                 newUser = input("Introduce usuario nuevo: ")
                 newPass = getpass("Introduce nueva contraseña: ")
-                update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=login.username,newUsername=newUser,password=newPass))
+                encodedPassword = newPass.encode()
+                passHash = hashlib.sha256(encodedPassword).hexdigest()
+                update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=login.username,newUsername=newUser,password=passHash))
                 print(update.message)
     except Exception as e:
         raise Exception
@@ -296,6 +300,7 @@ if __name__ == '__main__':
         print(LLAMADA_VISITOR)
         exit(0)
 
+    logging.basicConfig(filename='eventos.log',filemode='w', level=logging.INFO)
     signal.signal(signal.SIGINT, signal_handler)
     ## Comprobación de que el usuario está en la BD
     #logging.basicConfig()
