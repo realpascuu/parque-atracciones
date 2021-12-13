@@ -20,7 +20,7 @@ user_BD = 'admin'
 passwd_BD = 'burguerking'
 database_BD = 'parque'
 
-LOG_FILENAME = datetime
+#LOG_FILENAME = datetime.datetime.now().strftime(("%Y%m%d_%H%M%Stest.log"))
 # Ejecución Registry
 LLAMADA_REGISTRY = "python3 FWQ_Registry.py <puerto_escucha>"
 
