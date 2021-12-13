@@ -150,27 +150,22 @@ class AuthInterceptor(grpc.ServerInterceptor):
             return self._deny
 
 async def serve(port) -> None:
-    # creamos el servidor
-    server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=10),
-        interceptors=(AuthInterceptor('access_key'),)
-    )
+    listen_addr = '[::]:' + port
     # abrimos la clave privada
     with open('server.key', 'rb') as f:
         private_key = f.read()
     # avrimos el certificado
     with open('server.crt', 'rb') as f:
         certificate_chain = f.read()
-    
-    # obtenemos las credenciales
-    server_credentials = grpc.ssl_server_credentials(( (private_key, certificate_chain), ))
-    server.add_secure_port('localhost:443', server_credentials)
+    server_credentials = grpc.ssl_server_credentials( ((private_key, certificate_chain,),))
+    server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))
     register_pb2_grpc.add_RegisterServicer_to_server(Register(), server)
     register_pb2_grpc.add_LoginServicer_to_server(Login(), server)
     register_pb2_grpc.add_UpdateServicer_to_server(Update(), server)
+    # obtenemos las credenciales
     
-    
-    listen_addr = '[::]:' + port
+    server.add_secure_port(listen_addr, server_credentials)
+       
     logging.info("Starting server on %s", listen_addr)
     await server.start() 
 
