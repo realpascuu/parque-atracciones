@@ -319,6 +319,8 @@ def consultaAtracciones(atracciones):
         atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4]), -1))
         zona = definirZona(atracciones[-1].coordenadas.x, atracciones[-1].coordenadas.y)
         atracciones[-1].block = zonas[zona - 1]
+        if atracciones[-1].block:
+            updateAtraccion(atracciones[-1].id, -1)
         
 
 def consultaUsuarios(usuariosDentro):
