@@ -8,3 +8,4 @@ class Atraccion:
         self.tiempoEspera = tiempoEspera
         self.nvisitors = nvisitors
         self.coordenadas = coordenadas
+        self.block = False
