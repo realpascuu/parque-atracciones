@@ -9,7 +9,7 @@ import logging
 from time import sleep
 import signal
 import hashlib
-import datatime
+#import datatime
 import grpc
 from protosRegistry import register_pb2, register_pb2_grpc
 
@@ -156,10 +156,10 @@ class AuthInterceptor(grpc.ServerInterceptor):
 async def serve(port) -> None:
     listen_addr = '[::]:' + port
     # abrimos la clave privada
-    with open('server.key', 'rb') as f:
+    with open('claves/server.key', 'rb') as f:
         private_key = f.read()
     # avrimos el certificado
-    with open('server.crt', 'rb') as f:
+    with open('claves/server.crt', 'rb') as f:
         certificate_chain = f.read()
     server_credentials = grpc.ssl_server_credentials( ((private_key, certificate_chain,),))
     server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))
