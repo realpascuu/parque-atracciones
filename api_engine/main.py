@@ -58,4 +58,4 @@ def obtenerUsuarios():
     return jsonify({})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3000)
+    app.run(debug=True, port=3000, ssl_context=('./ssl/cert.pem', './ssl/key.pem'))

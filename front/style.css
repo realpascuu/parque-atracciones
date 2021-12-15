@@ -1,0 +1,49 @@
+.frame {
+    position: absolute;
+    border-radius: 2px;
+    box-shadow: 4px 8px 16px 0 rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    background: #fff;
+    color: #333;
+}
+
+.fila {
+    display: inline-block;
+    width: 19px;
+    height: 100%;
+    border-right: 1px solid black;
+    margin-right: -5px;
+}
+
+.pos {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.mapa {
+    display: grid;
+    grid-template-columns: repeat(21, 29px);
+    grid-template-rows: repeat(21, 30px);
+    border: 3px solid black;
+    padding: 0.4em;
+}
+
+li {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #c0c0c0;
+    list-style: none;
+    font-family: "VT323";
+    font-size: 1.5em;
+    border: 1px solid #808080;
+}
+
+.titulo {
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 30px;
+    text-align: center;
+}
