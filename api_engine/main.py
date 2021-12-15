@@ -49,7 +49,6 @@ def obtenerAtracciones():
             'y': atraccion[2],
             'tiempo_espera': atraccion[3]
             })
-    print(resultado)
     return jsonify(resultado)
 # ruta para obtener la posicion de los usuarios
 @app.route('/usuarios/')
