@@ -49,7 +49,6 @@ def obtenerAtracciones():
             'y': atraccion[2],
             'tiempo_espera': atraccion[3]
             })
-    print(resultado)
     return jsonify(resultado)
 # ruta para obtener la posicion de los usuarios
 @app.route('/usuarios/')
@@ -58,4 +57,4 @@ def obtenerUsuarios():
     return jsonify({})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3000)
+    app.run(debug=True, port=3000, ssl_context=('./ssl/cert.pem', './ssl/key.pem'))

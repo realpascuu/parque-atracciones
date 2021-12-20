@@ -4,13 +4,44 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ejemplo SD</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <title>DisneyLand</title>
 </head>
 
 <body>
-    <div>
-        <p>Hola mi gente</p>
-        <p id="ejemplo"></p>
+    <div class="titulo">
+        <p>Parque de atracciones</p>
+    </div>
+    <div class="subtitulo">
+        <p>Bloqueo de zonas</p>
+    </div>
+    <div class="padre">
+        <div class="formulario">
+            <input id="city" class="city espacio-formulario" placeholder="Ciudad">
+            <select id="zona" name="zona" class="espacio-formulario boton">
+                <option>1</option>
+                <option>2</option>
+                <option>3</option>
+                <option>4</option>
+            </select>
+            <button id="envioZona" type="button" class="espacio-formulario boton">Enviar</button>
+        </div>
+    </div>
+    <div class="popup-wrapper" id="popup-wrapper">
+        <div class="popup">
+            <div class="popup-close">x</div>
+            <div class="popup-content">
+                Error al conectar con la API
+            </div>
+        </div>
+    </div>
+    <div class="subtitulo">
+        <p>Estado del mapa</p>
+    </div>
+    <div class="padre">
+        <ul class="mapa" id="mapa">
+        </ul>
     </div>
     <script src="main.js"></script>
 </body>
