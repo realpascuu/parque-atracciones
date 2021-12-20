@@ -15,16 +15,6 @@ app = Flask('server')
 # Añadimos cabecera CORS
 CORS(app)
 
-# intentamos conectar con la BD
-try:
-    mydb = mysql.connector.connect(
-        host=host_BD,
-        user=user_BD,
-        passwd=passwd_BD,
-        database=database_BD
-    )
-except Exception as e:
-    print("No se ha podido establecer conexión con BD en " + host_BD + ":3306")
 
 
 # ruta de ejemplo
@@ -37,24 +27,59 @@ def hello():
 @app.route('/atracciones')
 
 def obtenerAtracciones():
-    mycursor = mydb.cursor()
-    query = 'SELECT id, x, y, tiempo_espera FROM atraccion'
-    mycursor.execute(query)
-    data = mycursor.fetchall()
-    resultado = []
-    for atraccion in data:
-        resultado.append({
-            'id': atraccion[0],
-            'x': atraccion[1],
-            'y': atraccion[2],
-            'tiempo_espera': atraccion[3]
-            })
-    return jsonify(resultado)
+
+# intentamos conectar con la BD
+    try:
+        mydb = mysql.connector.connect(
+            host=host_BD,
+            user=user_BD,
+            passwd=passwd_BD,
+            database=database_BD
+        );
+        mycursor = mydb.cursor()
+        query = 'SELECT id, x, y, tiempo_espera FROM atraccion'
+        mycursor.execute(query)
+        data = mycursor.fetchall()
+        resultado = []
+        for atraccion in data:
+            resultado.append({
+                'id': atraccion[0],
+                'x': atraccion[1],
+                'y': atraccion[2],
+                'tiempo_espera': atraccion[3]
+                })
+        return jsonify(resultado)
+    except Exception as e:
+        print("No se ha podido establecer conexión con BD en " + host_BD + ":3306")
+        return jsonify([])
 # ruta para obtener la posicion de los usuarios
-@app.route('/usuarios/')
+@app.route('/usuarios')
 
 def obtenerUsuarios():
-    return jsonify({})
 
+# intentamos conectar con la BD
+    try:
+        mydb = mysql.connector.connect(
+        host=host_BD,
+        user=user_BD,
+        passwd=passwd_BD,
+        database=database_BD
+        )
+        mycursor = mydb.cursor()
+        query = 'SELECT alias, x, y FROM usuarios WHERE x != -1'
+        mycursor.execute(query)
+        data = mycursor.fetchall()
+        resultado = []
+        for usuario in data:
+            resultado.append({
+                'alias': usuario[0],
+                'x': usuario[1],
+                'y': usuario[2]
+                })
+        return jsonify(resultado)
+    except Exception as e:
+        print("No se ha podido establecer conexión con BD en " + host_BD + ":3306")
+        return jsonify([])
+    
 if __name__ == '__main__':
     app.run(debug=True, port=3000, ssl_context=('./ssl/cert.pem', './ssl/key.pem'))
