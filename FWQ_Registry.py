@@ -94,10 +94,7 @@ class Login(register_pb2_grpc.LoginServicer):
                 mycursor.execute(query)
                 data = mycursor.fetchall()
                 data = data[0][0]
-                
-                encodedPassword = data.encode()
-                passHash = hashlib.sha256(encodedPassword).hexdigest()
-                if passHash==request.password:
+                if request.password==data:
                     message ="Autentificación exitosa!!"
                     logging.info("Se ha iniciado sesión con el usuario " + request.username)
                 else:
@@ -158,7 +155,7 @@ async def serve(port) -> None:
     # abrimos la clave privada
     with open('claves/server.key', 'rb') as f:
         private_key = f.read()
-    # avrimos el certificado
+    # abrimos el certificado
     with open('claves/server.crt', 'rb') as f:
         certificate_chain = f.read()
     server_credentials = grpc.ssl_server_credentials( ((private_key, certificate_chain,),))
@@ -194,7 +191,6 @@ if __name__ == '__main__':
         print(LLAMADA_REGISTRY)
         exit()
     
-    logging.basicConfig(filename='eventos.log',filemode='w', level=logging.INFO)
     signal.signal(signal.SIGINT, signal_handler)
 
     loop = asyncio.get_event_loop()

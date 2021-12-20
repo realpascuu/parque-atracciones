@@ -1,4 +1,3 @@
-import logging
 from time import sleep
 from common.Coordenadas2D import Coordenadas2D
 import common.Kafka as Kafka
@@ -77,8 +76,10 @@ async def tryLogin(channel):
     print("-------------LOGIN-------------")
     posibleUsername = input("Introduce usuario: ")
     password = getpass("Introduce contraseña: ")
+    encodedPassword = password.encode()
+    passHash = hashlib.sha256(encodedPassword).hexdigest()
     try:                    
-        login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=password))
+        login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=passHash))
         return login
     except Exception as e:
         raise Exception
@@ -300,10 +301,8 @@ if __name__ == '__main__':
         print(LLAMADA_VISITOR)
         exit(0)
 
-    logging.basicConfig(filename='eventos.log',filemode='w', level=logging.INFO)
     signal.signal(signal.SIGINT, signal_handler)
     ## Comprobación de que el usuario está en la BD
-    #logging.basicConfig()
     datosLogin = arrancarConexionRegistry(host_registry, port_registry)
     
     # datos recibidos del login
