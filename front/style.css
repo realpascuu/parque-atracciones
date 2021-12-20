@@ -132,3 +132,11 @@ li {
 .casilla {
     background-color: rgba(230, 230, 37, 0.522);
 }
+
+.atraccion {
+    background-color: rgba(230, 111, 37, 0.522);
+}
+
+.usuario {
+    background-color: rgba(37, 230, 66, 0.522);
+}
