@@ -6,7 +6,6 @@ function changePopup(cadena) {
 async function getAtracciones() {
     return fetch('https://localhost:3000/atracciones').then(async(resp) => {
         var atracciones = await resp.json()
-        console.log(atracciones)
         return atracciones
     }).catch((error) => {
         changePopup('block');
@@ -20,6 +19,26 @@ async function getUsuarios() {
     }).catch((error) => {
         changePopup('block');
         return []
+    });
+}
+
+async function blockZona(zona, city) {
+    return fetch('https://localhost:3000/zona', {
+        method: 'PUT',
+        mode: 'cors',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            zona: zona,
+            ciudad: city
+        })
+    }).then(async(resp) => {
+        var mensaje = await resp.json();
+        return mensaje.message
+    }).catch((error) => {
+        changePopup('block');
+        return 'No se pudo actualizar'
     });
 }
 
@@ -54,13 +73,16 @@ document.addEventListener('DOMContentLoaded', () => {
         var content = await Promise.all(
             [getAtracciones(), getUsuarios()]
         );
-        console.log('hacemos', content)
 
         for (var i = 0; i < 20; i++) {
             for (var j = 0; j < 20; j++) {
                 var casilla = document.getElementById(i + '-' + j);
                 var atraccion = encontrarPosicion(content[0], i, j);
                 var usuario = encontrarPosicion(content[1], i, j);
+                if (casilla.classList.contains('atraccion'))
+                    casilla.classList.remove('atraccion')
+                if (casilla.classList.contains('usuario'))
+                    casilla.classList.remove('usuario')
                 if (atraccion) {
                     casilla.innerHTML = atraccion.tiempo_espera;
                     casilla.classList.add('atraccion')
@@ -69,8 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     casilla.classList.add('usuario')
                 } else {
                     casilla.innerHTML = '';
-                    if (casilla.classList.contains('atraccion')) casilla.remove('atraccion')
-                    if (casilla.classList.contains('usuario')) casilla.remove('usuario')
                 }
             }
         }
@@ -78,11 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 var boton = document.getElementById("envioZona");
-boton.addEventListener('click', () => {
+boton.addEventListener('click', async() => {
     var city = document.getElementById('city').value;
     var zona = document.getElementById('zona').value;
-    console.log(city, zona);
-    changePopup('block');
+    console.log(await blockZona(zona, city));
 });
 
 var closePopup = document.querySelector('.popup-close');

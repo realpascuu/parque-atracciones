@@ -107,26 +107,38 @@ li {
 .popup {
     font-family: Calisto MT, serif;
     text-align: center;
+    display: flex;
+    justify-content: center;
     width: 100%;
     max-width: 300px;
     background: white;
     margin: 10% auto;
     padding: 20px;
     position: relative;
-    padding-left: 3em;
-    padding-right: 3em;
     border-radius: 1em;
+    height: 20%;
+    max-height: 300px;
+}
+
+.popup-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .popup-close {
     font-family: monospace;
     position: absolute;
-    color: red;
+    color: grey;
     top: 10px;
     right: 15px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 1.5rem;
     padding: 0.2em;
+}
+
+.popup-close:hover {
+    color: red;
 }
 
 .casilla {

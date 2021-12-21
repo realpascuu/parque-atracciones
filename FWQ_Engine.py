@@ -41,12 +41,11 @@ ZONAS:
 3. 0-9, 10-19
 4. 10-19, 10-19
  """
-zonas = []
+zonas = [0, 0, 0, 0]
 ## LLAMADA A ENGINE
 LLAMADA_ENGINE = "python3 FWQ_Engine.py <host>:<port_kafka> <nummax_visitantes> <host>:<port_waitingserver>"
 
 API_KEY = "47fe4dc689d72a4666d016f08f81dbf3"
-CITYS_NAME = ['Callosa de Segura', 'Buenos Aires', 'Brasilia', 'El Cairo', 'Jeddah']
 GRADOS_KELVIN = 273.15
 
 ## DEFINE LA CADENA DE LLAMADA A LA API
@@ -79,6 +78,29 @@ def definirZona(x, y):
         else:
             return 4
 
+def actualizarZonas():
+    global zonas
+
+    while(True):
+        mydb = mysql.connector.connect(
+            host=host_BD,
+            user=user_BD,
+            passwd=passwd_BD,
+            database=database_BD)
+
+        query = 'SELECT * FROM zonas'
+        try:
+            mycursor = mydb.cursor()
+            mycursor.execute(query)
+            data = mycursor.fetchall()
+            for i in range(4):
+                zonas[i] = data[i][1]
+        except Exception as e:
+            print(e)
+            print("No se puedo establecer conexión con MySql")
+        print(zonas)
+        sleep(1)
+
 def updateUsuario(username, x, y):
     global mydb
     try:
@@ -92,8 +114,10 @@ def updateUsuario(username, x, y):
     except Exception:
         print("No se puedo establecer conexión con MySql")
 
-def updateAtraccion(id, tiempoEspera):
+def updateAtraccion(id, tiempoEspera, block):
     global mydb
+    if block:
+        tiempoEspera = -1
     query = 'UPDATE atraccion SET tiempo_espera = ' + str(tiempoEspera) + ' WHERE id = ' + str(id)
     try:
         mycursor = mydb.cursor()
@@ -157,10 +181,14 @@ def comunicarTiempoEspera(mapa, host, port):
         # almacenarlos en atracciones [0]=ID, [1]=TIEMPOS_ESPERA
         for upAtr in updateAtrac:
             for atraccion in atracciones:
-                if upAtr[0] ==  atraccion.id and not atraccion.block:
-                    atraccion.tiempoEspera = upAtr[1]
-                    updateAtraccion(atraccion.id, atraccion.tiempoEspera)
-                    continue
+                atraccion.block = zonas[definirZona(atraccion.coordenadas.x, atraccion.coordenadas.y) - 1]
+                if upAtr[0] ==  atraccion.id:
+                    if not atraccion.block:
+                        atraccion.tiempoEspera = upAtr[1]
+                    else: 
+                        atraccion.tiempoEspera = -1
+                updateAtraccion(atraccion.id, atraccion.tiempoEspera, atraccion.block)
+                continue
             
         dibujarAtracciones(mapa, atracciones)
         # soluciona error que el hilo se adelante e intente enviar mapa cuando no se ha producido el producer
@@ -319,8 +347,7 @@ def consultaAtracciones(atracciones):
         atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4]), -1))
         zona = definirZona(atracciones[-1].coordenadas.x, atracciones[-1].coordenadas.y)
         atracciones[-1].block = zonas[zona - 1]
-        if atracciones[-1].block:
-            updateAtraccion(atracciones[-1].id, -1)
+        updateAtraccion(atracciones[-1].id, -1, atracciones[-1].block)
         
 
 def consultaUsuarios(usuariosDentro):
@@ -362,15 +389,6 @@ def consultaBD():
             print(e)
             sleep(5)
 
-# definir temperaturas de las cuatro zonas del parque para ver si son accesibles
-def zonasParque():
-    global zonas
-    for i in range(4):
-        j = random.randint(0, len(CITYS_NAME)-1)
-        resultado = conectarAPI(CITYS_NAME[j])
-        zonas.append(not(resultado >= 20 and resultado <= 30))
-
-
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     #logging.basicConfig(level=logging.INFO)
@@ -393,8 +411,13 @@ if __name__ == '__main__':
         print(LLAMADA_ENGINE)
         exit()
 
-    # conectar con API WEATHER para saber las zonas que están block o no
-    zonasParque()
+    # CARGAR ZONAS BLOQUEADAS
+    hiloActualizarBloqueoZonas = threading.Thread(
+        target=actualizarZonas,
+        name="zonas"
+    )
+    hiloActualizarBloqueoZonas.start()
+
     # CARGAR MAPA DE LA BD (HACER LO SIGUIENTE)
     # 1 Carga atracciones de la BD
     hiloConsultaBD = threading.Thread(
@@ -437,4 +460,3 @@ if __name__ == '__main__':
     )
     #hiloObtieneMovimiento.daemon = True
     hiloObtieneMovimiento.start()
-    
