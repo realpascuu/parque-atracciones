@@ -35,6 +35,7 @@ def obtenerAtracciones():
 
 # intentamos conectar con la BD
     try:
+        # Realizamos consulta en engine
         data = consultaAtracciones()
         resultado = []
         for atraccion in data:
@@ -46,7 +47,6 @@ def obtenerAtracciones():
                 })
         return jsonify(resultado)
     except Exception as e:
-        print(e)
         print("No se ha podido establecer conexión con BD en " + host_BD + ":3306")
         return jsonify([])
 # ruta para obtener la posicion de los usuarios
@@ -56,6 +56,7 @@ def obtenerUsuarios():
 
 # intentamos conectar con la BD
     try:
+        # Realizamos consulta en engine
         data = consultaUsuarios()
         resultado = []
         for usuario in data:
