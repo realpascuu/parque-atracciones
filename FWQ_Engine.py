@@ -13,8 +13,6 @@ from requests.exceptions import RequestException
 
 from common.Usuario import Usuario
 
-sys.path.insert(0, './protosWait')
-
 import numpy as np
 import asyncio
 import mysql.connector
@@ -42,6 +40,7 @@ ZONAS:
 4. 10-19, 10-19
  """
 zonas = [0, 0, 0, 0]
+
 ## LLAMADA A ENGINE
 LLAMADA_ENGINE = "python3 FWQ_Engine.py <host>:<port_kafka> <nummax_visitantes> <host>:<port_waitingserver>"
 
@@ -65,6 +64,29 @@ def conectarAPI(city):
         print(e)
     
     return round(convertirKelvinAGrados(respuesta['main']['temp']), 1)
+
+def actualizarZona(zona, ciudad):
+    block = False
+    temp = conectarAPI(ciudad)
+    if temp < 20 or temp > 30:
+        block = True
+
+    try:
+        mydb = mysql.connector.connect(
+        host=host_BD,
+        user=user_BD,
+        passwd=passwd_BD,
+        database=database_BD
+        )
+        mycursor = mydb.cursor()
+        query = 'UPDATE zonas SET block = ' + str(block) + ' WHERE zona = ' + str(zona) + ';'
+        mycursor.execute(query)
+        mydb.commit()
+
+        return (True, block)
+    except Exception as e:
+        print(e)
+        return (False, block)
 
 def definirZona(x, y):
     if x < 10:
@@ -311,7 +333,6 @@ def obtieneMovimiento(mapa):
 
     for message in consumerMov:
         ## OBTIENE EL NUEVO MAPA
-        print("mov")
         usuario = message.value
         # eliminar alias en el mapa
         for i in range(0,20):
