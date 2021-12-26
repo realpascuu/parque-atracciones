@@ -379,7 +379,7 @@ def consultaUsuarios():
                     passwd=passwd_BD,
                     database=database_BD)
 
-        query = "SELECT username, alias, x, y FROM `usuarios`"
+        query = 'SELECT username, alias, x, y FROM usuarios WHERE x != -1'
 
         mycursor = mydb.cursor()
         mycursor.execute(query)

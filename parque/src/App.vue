@@ -7,6 +7,14 @@
         <p>Bloqueo de zonas parque</p>
     </div>
     <div class="padre">
+        <div class="glosario-zonas">
+            <p><span class="square zona-1"></span> Zona 1</p>
+            <p><span class="square zona-2"></span> Zona 2</p>
+            <p><span class="square zona-3"></span> Zona 3</p>
+            <p><span class="square zona-4"></span> Zona 4</p>
+        </div>
+    </div>
+    <div class="padre">
         <div class="formulario">
             <input id="ciudad" v-model="ciudad" class="city espacio-formulario" placeholder="Ciudad">
             <select id="zona" v-model="this.zona" name="zona" class="espacio-formulario boton">
@@ -159,6 +167,46 @@ export default {
 
                 li.className = 'casilla';
             }
+
+            // zona 1
+            if(j == 9 && i < 10 && i > -1) {
+                li.classList.add('zona-1-derecha')
+            }
+
+
+            if(i == 9 && j < 10 && j > -1) {
+                li.classList.add('zona-1-abajo')
+            }
+
+            // zona 2
+            if(i == 10 && j < 10 && j > -1) {
+                li.classList.add('zona-2-arriba')
+            }
+
+            if(j == 9 && i > 9) {
+                li.classList.add('zona-2-derecha')
+            }
+
+            //zona 3
+            if(j == 10 && i < 10 && i > -1) {
+                li.classList.add('zona-3-izquierda')
+            }
+
+
+            if(i == 9 && j > 9) {
+                li.classList.add('zona-3-abajo')
+            }
+
+            // zona 4
+            if(j == 10 && i > 9) {
+                li.classList.add('zona-4-izquierda')
+            }
+
+
+            if(i == 10 && j > 9) {
+                li.classList.add('zona-4-arriba')
+            }
+
             mapa.appendChild(li);
         }
     }
@@ -236,6 +284,16 @@ li {
     box-shadow: 2px 2px 5px rgb(145, 144, 144);
 }
 
+.glosario-zonas {
+    border: 1px solid black;
+    background-color: rgba(238, 233, 233, 0.33);
+    padding-left: 2em;
+    padding-right: 2em;
+    margin-bottom: 2em;
+    box-shadow: 2px 2px 5px rgb(145, 144, 144);
+    font-size: 10px;
+}
+
 .espacio-formulario {
     margin-left: 1em;
     margin-right: 1em;
@@ -258,6 +316,29 @@ li {
 
 .city {
     width: 40%;
+}
+
+.square {
+    width: 7px;
+    height: 7px;
+    margin-right: 5px;
+    display: inline-block;
+}
+
+.zona-1 {
+    background-color: red;
+}
+
+.zona-2 {
+    background-color: orange;
+}
+
+.zona-3 {
+    background-color: blue;
+}
+
+.zona-4 {
+    background-color: green;
 }
 
 .zona:hover {
@@ -321,5 +402,37 @@ li {
 
 .usuario {
     background-color: rgba(37, 230, 66, 0.522);
+}
+
+.zona-1-derecha {
+    border-right: 2px solid red;
+}
+
+.zona-1-abajo {
+    border-bottom: 2px solid red;
+}
+
+.zona-2-derecha {
+    border-right: 2px solid orange;
+}
+
+.zona-2-arriba {
+    border-top: 2px solid orange;
+}
+
+.zona-3-izquierda {
+    border-left: 2px solid blue;
+}
+
+.zona-3-abajo {
+    border-bottom: 2px solid blue;
+}
+
+.zona-4-arriba {
+    border-top: 2px solid rgb(8, 233, 8);
+}
+
+.zona-4-izquierda {
+    border-left: 2px solid rgb(8, 233, 8);
 }
 </style>
