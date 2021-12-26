@@ -120,7 +120,6 @@ def actualizarZonas():
         except Exception as e:
             print(e)
             print("No se puedo establecer conexión con MySql")
-        print(zonas)
         sleep(1)
 
 def updateUsuario(username, x, y):
@@ -355,40 +354,38 @@ def signal_handler(signal, frame):
     sleep(1)
     sys.exit(0)
 
-def consultaAtracciones(atracciones):
-    global mydb
+def consultaAtracciones():
     global zonas
-    query = "SELECT * FROM `atraccion`"
-    mycursor = mydb.cursor()
+    try:
+        mydb = mysql.connector.connect(
+                    host=host_BD,
+                    user=user_BD,
+                    passwd=passwd_BD,
+                    database=database_BD)
 
-    mycursor.execute(query)
-    data = mycursor.fetchall()
+        query = 'SELECT id, x, y, tiempo_espera FROM atraccion'
+        mycursor = mydb.cursor()
 
-    for x in data:
-        atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4]), -1))
-        zona = definirZona(atracciones[-1].coordenadas.x, atracciones[-1].coordenadas.y)
-        atracciones[-1].block = zonas[zona - 1]
-        updateAtraccion(atracciones[-1].id, -1, atracciones[-1].block)
-        
+        mycursor.execute(query)
+        return mycursor.fetchall()
+    except Exception:
+        raise Exception
 
-def consultaUsuarios(usuariosDentro):
-    global mydb
-    query = "SELECT username, alias, x, y FROM `usuarios`"
+def consultaUsuarios():
+    try:
+        mydb = mysql.connector.connect(
+                    host=host_BD,
+                    user=user_BD,
+                    passwd=passwd_BD,
+                    database=database_BD)
 
-    mycursor = mydb.cursor()
-    mycursor.execute(query)
-    data = mycursor.fetchall()
+        query = "SELECT username, alias, x, y FROM `usuarios`"
 
-    # consulta si hay alguno aún dentro del mapa
-    for x in data:
-        if x[2] != -1:
-            usuario = {
-                'alias': x[1],
-                'username' : x[0],
-                'x' : x[2],
-                'y' : x[3]
-            }
-            usuariosDentro.append(usuario)
+        mycursor = mydb.cursor()
+        mycursor.execute(query)
+        return mycursor.fetchall()
+    except Exception:
+        raise Exception
 
 def consultaBD():
     global atracciones
@@ -397,15 +394,29 @@ def consultaBD():
     conexion = False
     while conexion == False:
         try:
-            mydb = mysql.connector.connect(
-                host=host_BD,
-                user=user_BD,
-                passwd=passwd_BD,
-                database=database_BD)
-
             conexion = True
-            consultaAtracciones(atracciones)
-            consultaUsuarios(usuariosDentro)
+            # obtener valores actuales de las atracciones
+            conAtracciones = consultaAtracciones()
+
+            for x in conAtracciones:
+                atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4]), -1))
+                zona = definirZona(atracciones[-1].coordenadas.x, atracciones[-1].coordenadas.y)
+                atracciones[-1].block = zonas[zona - 1]
+                updateAtraccion(atracciones[-1].id, -1, atracciones[-1].block)
+                
+            # obtener valores de los usuarios
+            conUsuarios = consultaUsuarios()
+
+            # consulta si hay algún usuario aún dentro del mapa
+            for x in conUsuarios:
+                print(x.alias)
+                usuario = {
+                    'alias': x[1],
+                    'username' : x[0],
+                    'x' : x[2],
+                    'y' : x[3]
+                }
+                usuariosDentro.append(usuario)
         except Exception as e:
             print(e)
             sleep(5)

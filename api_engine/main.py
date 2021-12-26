@@ -4,7 +4,7 @@ import mysql.connector
 import sys
 sys.path.append("..")
 
-from FWQ_Engine import actualizarZona
+from FWQ_Engine import actualizarZona, consultaAtracciones, consultaUsuarios
 import requests
 from requests.exceptions import RequestException
 
@@ -35,16 +35,7 @@ def obtenerAtracciones():
 
 # intentamos conectar con la BD
     try:
-        mydb = mysql.connector.connect(
-            host=host_BD,
-            user=user_BD,
-            passwd=passwd_BD,
-            database=database_BD
-        );
-        mycursor = mydb.cursor()
-        query = 'SELECT id, x, y, tiempo_espera FROM atraccion'
-        mycursor.execute(query)
-        data = mycursor.fetchall()
+        data = consultaAtracciones()
         resultado = []
         for atraccion in data:
             resultado.append({
@@ -55,6 +46,7 @@ def obtenerAtracciones():
                 })
         return jsonify(resultado)
     except Exception as e:
+        print(e)
         print("No se ha podido establecer conexión con BD en " + host_BD + ":3306")
         return jsonify([])
 # ruta para obtener la posicion de los usuarios
@@ -64,22 +56,13 @@ def obtenerUsuarios():
 
 # intentamos conectar con la BD
     try:
-        mydb = mysql.connector.connect(
-        host=host_BD,
-        user=user_BD,
-        passwd=passwd_BD,
-        database=database_BD
-        )
-        mycursor = mydb.cursor()
-        query = 'SELECT alias, x, y FROM usuarios WHERE x != -1'
-        mycursor.execute(query)
-        data = mycursor.fetchall()
+        data = consultaUsuarios()
         resultado = []
         for usuario in data:
             resultado.append({
-                'alias': usuario[0],
-                'x': usuario[1],
-                'y': usuario[2]
+                'alias': usuario[1],
+                'x': usuario[2],
+                'y': usuario[3]
                 })
         return jsonify(resultado)
     except Exception as e:
