@@ -4,18 +4,18 @@ import mysql.connector
 import random
 import string
 
-sys.path.insert(0, './protosRegistry')
 
 import asyncio
 import logging
 from time import sleep
 import signal
 import hashlib
-#import datatime
-import grpc
-from protosRegistry import register_pb2, register_pb2_grpc
-
 from concurrent import futures
+import grpc
+#import datatime
+sys.path.append(sys.path[0].split('api_registry')[0] + '/protosRegistry')
+
+from protosRegistry import register_pb2, register_pb2_grpc
 
 host_BD = 'localhost'
 user_BD = 'admin'

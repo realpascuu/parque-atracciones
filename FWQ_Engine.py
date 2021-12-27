@@ -19,6 +19,8 @@ import mysql.connector
 import grpc
 import logging
 
+sys.path.append(sys.path[0].split('api_engine')[0] + '/protosWait')
+
 from protosWait import waitingTime_pb2, waitingTime_pb2_grpc 
 
 # variables BD MySQL
