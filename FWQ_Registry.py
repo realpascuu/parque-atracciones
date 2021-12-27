@@ -1,6 +1,8 @@
+from random import random
 import sys
 import mysql.connector
-
+import random
+import string
 
 sys.path.insert(0, './protosRegistry')
 
@@ -20,7 +22,6 @@ user_BD = 'admin'
 passwd_BD = 'burguerking'
 database_BD = 'parque'
 
-#LOG_FILENAME = datetime.datetime.now().strftime(("%Y%m%d_%H%M%Stest.log"))
 # Ejecución Registry
 LLAMADA_REGISTRY = "python3 FWQ_Registry.py <puerto_escucha>"
 
@@ -48,8 +49,9 @@ class Register(register_pb2_grpc.RegisterServicer):
                 existe = True
 
             if not existe:
-                sql = "INSERT INTO usuarios(username, password, alias) VALUES (%s, %s, %s)"
-                val = (request.username, request.password, request.id)
+                passHash,salt = obtenerHash(request.password)
+                sql = "INSERT INTO usuarios(username, password, salt, alias) VALUES (%s, %s, %s, %s)"
+                val = (request.username, passHash, salt, request.id)
                 mycursor.execute(sql, val)
 
                 mydb.commit()
@@ -58,7 +60,7 @@ class Register(register_pb2_grpc.RegisterServicer):
 
             return register_pb2.UserReply(message=message)
         except Exception as e:
-            logging.info(e)
+            print(e)
             message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
             return register_pb2.UserReply(message=message)
 
@@ -89,12 +91,15 @@ class Login(register_pb2_grpc.LoginServicer):
                 usernameLog = data[0][0]
                 alias = data[0][1]
 
+
             if existe:
-                query = "SELECT password FROM usuarios WHERE username=" + "\"" + request.username + "\""
+                query = "SELECT password, salt FROM usuarios WHERE username=" + "\"" + request.username + "\""
                 mycursor.execute(query)
                 data = mycursor.fetchall()
-                data = data[0][0]
-                if request.password==data:
+                passwordBD = data[0][0]
+                saltBD = data[0][1]
+                print(passwordBD)
+                if hashIgual(passwordBD, saltBD, request.password):
                     message ="Autentificación exitosa!!"
                     logging.info("Se ha iniciado sesión con el usuario " + request.username)
                 else:
@@ -102,7 +107,7 @@ class Login(register_pb2_grpc.LoginServicer):
 
             return register_pb2.UserRespuesta(message=message, username=usernameLog, alias=alias)
         except Exception as e:
-            logging.info(e)
+            print(e)
             message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
             return register_pb2.UserRespuesta(message=message, username="", alias="")
 
@@ -150,13 +155,32 @@ class AuthInterceptor(grpc.ServerInterceptor):
         else:
             return self._deny
 
+def obtenerHash(password):
+    characters = string.ascii_letters + string.digits + string.punctuation
+    salt = ''.join(random.choice(characters) for i in range(6))
+    pepper = random.choice(string.ascii_letters)
+    encodedPassword = (password+salt+pepper).encode()
+    passHash = hashlib.sha256(encodedPassword).hexdigest()
+    return (passHash, salt)
+
+def hashIgual(passwordBD, saltBD, password):
+    print(passwordBD,saltBD,password)
+    for i in range(256):
+        pepper = chr(i)
+        encodedPass = (password+saltBD+pepper).encode()
+        passw = hashlib.sha256(encodedPass).hexdigest()
+
+        if passw == passwordBD:            
+            return True
+    return False
+
 async def serve(port) -> None:
     listen_addr = '[::]:' + port
     # abrimos la clave privada
-    with open('claves/server.key', 'rb') as f:
+    with open('clavesRegistro/server.key', 'rb') as f:
         private_key = f.read()
     # abrimos el certificado
-    with open('claves/server.crt', 'rb') as f:
+    with open('clavesRegistro/server.crt', 'rb') as f:
         certificate_chain = f.read()
     server_credentials = grpc.ssl_server_credentials( ((private_key, certificate_chain,),))
     server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))

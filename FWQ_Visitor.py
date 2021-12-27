@@ -76,10 +76,8 @@ async def tryLogin(channel):
     print("-------------LOGIN-------------")
     posibleUsername = input("Introduce usuario: ")
     password = getpass("Introduce contraseña: ")
-    encodedPassword = password.encode()
-    passHash = hashlib.sha256(encodedPassword).hexdigest()
     try:                    
-        login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=passHash))
+        login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=password))
         return login
     except Exception as e:
         raise Exception
@@ -96,16 +94,15 @@ async def editarUsuario(channel):
                 stubUpdate = register_pb2_grpc.UpdateStub(channel)
                 newUser = input("Introduce usuario nuevo: ")
                 newPass = getpass("Introduce nueva contraseña: ")
-                encodedPassword = newPass.encode()
-                passHash = hashlib.sha256(encodedPassword).hexdigest()
-                update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=login.username,newUsername=newUser,password=passHash))
+               
+                update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=login.username,newUsername=newUser,password=newPass))
                 print(update.message)
     except Exception as e:
         raise Exception
 
 ## FUNCIÓN PARA ESTABLECER CONEXIÓN GRPC
 async def run(host, port):   
-    with open('claves/server.crt', 'rb') as f:
+    with open('clavesRegistro/server.crt', 'rb') as f:
         trusted_certs = f.read()
     credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
     async with grpc.aio.secure_channel(host + ':' + port, credentials) as channel:    
