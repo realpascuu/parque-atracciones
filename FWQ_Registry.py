@@ -98,7 +98,6 @@ class Login(register_pb2_grpc.LoginServicer):
                 data = mycursor.fetchall()
                 passwordBD = data[0][0]
                 saltBD = data[0][1]
-                print(passwordBD)
                 if hashIgual(passwordBD, saltBD, request.password):
                     message ="Autentificación exitosa!!"
                     logging.info("Se ha iniciado sesión con el usuario " + request.username)
@@ -164,12 +163,10 @@ def obtenerHash(password):
     return (passHash, salt)
 
 def hashIgual(passwordBD, saltBD, password):
-    print(passwordBD,saltBD,password)
     for i in range(256):
         pepper = chr(i)
         encodedPass = (password+saltBD+pepper).encode()
         passw = hashlib.sha256(encodedPass).hexdigest()
-
         if passw == passwordBD:            
             return True
     return False

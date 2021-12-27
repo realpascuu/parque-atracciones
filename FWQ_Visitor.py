@@ -46,10 +46,7 @@ def crearPassword():
     password2 = getpass("Vuelve a introducir la contraseña: ")
     if (password != password2):
         raise PasswordException("Error! Las contraseñas no coinciden")
-    # Se hace el hash a la contraseña introducida por el usuario
-    encodedPassword = password.encode()
-    passHash = hashlib.sha256(encodedPassword).hexdigest()
-    return passHash
+    return password
 
 async def registro(channel):
     stub = register_pb2_grpc.RegisterStub(channel)
