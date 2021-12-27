@@ -164,7 +164,10 @@ def datosParaEnviarPorCanal(atracciones):
     return atraccionesNumpy
 
 async def run(host, port):
-    async with grpc.aio.insecure_channel(str(host) + ':' + str(port)) as channel:
+    with open('clavesTimeServer/server.crt', 'rb') as f:
+        trusted_certs = f.read()
+    credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
+    async with grpc.aio.secure_channel(host + ':' + port, credentials) as channel:  
         global atracciones
         stub = waitingTime_pb2_grpc.WaitingTimeStub(channel)
         

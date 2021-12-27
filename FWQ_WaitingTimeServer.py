@@ -62,10 +62,18 @@ def obtieneInfo():
             consumer.commit()
 
 async def serve(port) -> None:
-    server = grpc.aio.server()
-    waitingTime_pb2_grpc.add_WaitingTimeServicer_to_server(WaitingTime(), server)
     listen_addr = '[::]:' + port
-    server.add_insecure_port(listen_addr)
+    # abrimos la clave privada
+    with open('clavesTimeServer/server.key', 'rb') as f:
+        private_key = f.read()
+    # abrimos el certificado
+    with open('clavesTimeServer/server.crt', 'rb') as f:
+        certificate_chain = f.read()
+    server_credentials = grpc.ssl_server_credentials( ((private_key, certificate_chain,),))
+    server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))
+    waitingTime_pb2_grpc.add_WaitingTimeServicer_to_server(WaitingTime(), server)
+    
+    server.add_secure_port(listen_addr, server_credentials)
     logging.info("Escuchando en %s", listen_addr)
     await server.start()
 
