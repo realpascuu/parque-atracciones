@@ -26,115 +26,135 @@ database_BD = 'parque'
 LLAMADA_REGISTRY = "python3 FWQ_Registry.py <puerto_escucha>"
 
 _cleanup_coroutines = []
+
+
+def registrarse(username, password, id):
+    try:
+        mydb = mysql.connector.connect(
+        host=host_BD,
+        user=user_BD,
+        passwd=passwd_BD,
+        database=database_BD)
+
+        mycursor = mydb.cursor()
+
+        message = ""
+        existe = False
+        query = "SELECT username FROM `usuarios` WHERE username=" + "\"" + username + "\""
+        mycursor.execute(query)
+        data = mycursor.fetchall()
+        if data:
+            message = "El usuario ya existe"
+            existe = True
+
+        if not existe:
+            passHash,salt = obtenerHash(password)
+            sql = "INSERT INTO usuarios(username, password, salt, alias) VALUES (%s, %s, %s, %s)"
+            val = (username, passHash, salt, id)
+            mycursor.execute(sql, val)
+
+            mydb.commit()
+            message = "REGISTRO EXITOSO!!"
+            logging.info("Se ha registrado el usuario " + username)
+
+        return message
+    except Exception as e:
+        print(e)
+        message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
+        return message
+
+def login(username, password, ):
+    try:
+        mydb = mysql.connector.connect(
+        host=host_BD,
+        user=user_BD,
+        passwd=passwd_BD,
+        database=database_BD)
+
+        mycursor = mydb.cursor()
+        
+        message = ""
+        existe = True
+        query = "SELECT username, alias FROM usuarios WHERE username=" + "\"" + username + "\""
+        mycursor.execute(query)
+        data = mycursor.fetchall()
+        if not data:
+            existe = False
+            message = "El usuario " + username + " no existe"
+            usernameLog = username
+            alias = username[0:2]
+        else:
+            logging.info("Usuario correcto")
+            usernameLog = data[0][0]
+            alias = data[0][1]
+
+
+        if existe:
+            query = "SELECT password, salt FROM usuarios WHERE username=" + "\"" + username + "\""
+            mycursor.execute(query)
+            data = mycursor.fetchall()
+            passwordBD = data[0][0]
+            saltBD = data[0][1]
+            if hashIgual(passwordBD, saltBD, password):
+                message ="Autentificación exitosa!!"
+                logging.info("Se ha iniciado sesión con el usuario " + username)
+            else:
+                message = "Contraseña incorrecta"
+
+        return (message, usernameLog, alias)
+    except Exception as e:
+        print(e)
+        message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
+        return (message, "", "")
+
+
+def actualizar(oldUsername, newUsername, password):
+    try:
+        mydb = mysql.connector.connect(
+        host=host_BD,
+        user=user_BD,
+        passwd=passwd_BD,
+        database=database_BD)
+
+        mycursor = mydb.cursor()
+        
+        message = ""
+        newPassword, salt = obtenerHash(password)
+        queryUser = "UPDATE `usuarios` SET `username`= " + "\'" + newUsername + "\'" + ", `password`= " + "\'" + newPassword + "\'" + ", `salt`= " + "\'" + salt + "\'" + " WHERE `usuarios`.`username` = " + "\'" + oldUsername + "\'"
+        try:
+            mycursor.execute(queryUser)
+            mydb.commit()
+        except mysql.connector.Error as err:
+            logging.info("Error: No se puede actualizar el usuario")
+            message = "Error: No se puede actualizar el usuario"
+
+        return message
+    except Exception as e:
+        logging.info(e)
+        message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
+        return message
 class Register(register_pb2_grpc.RegisterServicer):
     async def doRegister(self, request: register_pb2.UserRequest, context: grpc.aio.ServicerContext) -> register_pb2.UserReply:
         logging.info('Se quiere registrar el usuario ' + request.username + ' con la contraseña ' + request.password)
       
-        try:
-            mydb = mysql.connector.connect(
-            host=host_BD,
-            user=user_BD,
-            passwd=passwd_BD,
-            database=database_BD)
+        message = registrarse(request.username, request.password, request.id)
 
-            mycursor = mydb.cursor()
+        return register_pb2.UserReply(message=message)
 
-            message = ""
-            existe = False
-            query = "SELECT username FROM `usuarios` WHERE username=" + "\"" + request.username + "\""
-            mycursor.execute(query)
-            data = mycursor.fetchall()
-            if data:
-                message = "El usuario ya existe"
-                existe = True
-
-            if not existe:
-                passHash,salt = obtenerHash(request.password)
-                sql = "INSERT INTO usuarios(username, password, salt, alias) VALUES (%s, %s, %s, %s)"
-                val = (request.username, passHash, salt, request.id)
-                mycursor.execute(sql, val)
-
-                mydb.commit()
-                message = "REGISTRO EXITOSO!!"
-                logging.info("Se ha registrado el usuario " + request.username)
-
-            return register_pb2.UserReply(message=message)
-        except Exception as e:
-            print(e)
-            message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
-            return register_pb2.UserReply(message=message)
 
 class Login(register_pb2_grpc.LoginServicer):
     async def doLogin(self, request: register_pb2.UserPedido, context: grpc.aio.ServicerContext) -> register_pb2.UserRespuesta:
         logging.info("Se quiere loguear el usuario " + request.username)
-        try:
-            mydb = mysql.connector.connect(
-            host=host_BD,
-            user=user_BD,
-            passwd=passwd_BD,
-            database=database_BD)
-
-            mycursor = mydb.cursor()
-            
-            message = ""
-            existe = True
-            query = "SELECT username, alias FROM usuarios WHERE username=" + "\"" + request.username + "\""
-            mycursor.execute(query)
-            data = mycursor.fetchall()
-            if not data:
-                existe = False
-                message = "El usuario " + request.username + " no existe"
-                usernameLog = request.username
-                alias = request.username[0:2]
-            else:
-                logging.info("Usuario correcto")
-                usernameLog = data[0][0]
-                alias = data[0][1]
-
-
-            if existe:
-                query = "SELECT password, salt FROM usuarios WHERE username=" + "\"" + request.username + "\""
-                mycursor.execute(query)
-                data = mycursor.fetchall()
-                passwordBD = data[0][0]
-                saltBD = data[0][1]
-                if hashIgual(passwordBD, saltBD, request.password):
-                    message ="Autentificación exitosa!!"
-                    logging.info("Se ha iniciado sesión con el usuario " + request.username)
-                else:
-                    message = "Contraseña incorrecta"
-
-            return register_pb2.UserRespuesta(message=message, username=usernameLog, alias=alias)
-        except Exception as e:
-            print(e)
-            message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
-            return register_pb2.UserRespuesta(message=message, username="", alias="")
+        
+        (message, usernameLog, alias) = login(request.username, request.password)
+        return register_pb2.UserRespuesta(message=message, username=usernameLog, alias=alias)
 
 class Update(register_pb2_grpc.UpdateServicer):
     async def doUpdate(self, request: register_pb2.UserToChange, context: grpc.aio.ServicerContext) -> register_pb2.UserUpdate:
         logging.info("Se quiere modificar el usuario " + request.oldUsername)
-        try:
-            mydb = mysql.connector.connect(
-            host=host_BD,
-            user=user_BD,
-            passwd=passwd_BD,
-            database=database_BD)
+        message = actualizar(request.oldUsername, request.newUsername, request.password)
+        return register_pb2.UserUpdate(message=message)
 
-            mycursor = mydb.cursor()
-            
-            message = ""
-            queryUser = "UPDATE `usuarios` SET `username`= " + "\'" + request.newUsername + "\'" + ", `password`= " + "\'" + request.password + "\'" + " WHERE `usuarios`.`username` = " + "\'" + request.oldUsername + "\'"
-            try:
-                mycursor.execute(queryUser)
-            except mysql.connector.Error as err:
-                logging.info("Error: No se puede actualizar el usuario")
-                message = "Error: No se puede actualizar el usuario"
-
-            return register_pb2.UserUpdate(message=message)
-        except Exception as e:
-            logging.info(e)
-            message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
-            return register_pb2.UserUpdate(message=message)
 
 #Clase para interceptar la autentificación
 class AuthInterceptor(grpc.ServerInterceptor):
