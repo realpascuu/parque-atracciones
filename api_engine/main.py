@@ -5,17 +5,8 @@ import sys
 sys.path.append("..")
 
 from FWQ_Engine import actualizarZona, consultaAtracciones, consultaUsuarios
-import requests
-from requests.exceptions import RequestException
 
 # LLAMADA python3 main.py
-
-
-# variables para conectar con BD
-host_BD = 'localhost'
-user_BD = 'admin'
-passwd_BD = 'burguerking'
-database_BD = 'parque'
 
 # declaramos el API
 app = Flask('server')
@@ -47,7 +38,7 @@ def obtenerAtracciones():
                 })
         return jsonify(resultado)
     except Exception as e:
-        print("No se ha podido establecer conexión con BD en " + host_BD + ":3306")
+        print("No se ha podido establecer conexión con BD")
         return jsonify([])
 # ruta para obtener la posicion de los usuarios
 @app.route('/usuarios')
@@ -67,7 +58,7 @@ def obtenerUsuarios():
                 })
         return jsonify(resultado)
     except Exception as e:
-        print("No se ha podido establecer conexión con BD en " + host_BD + ":3306")
+        print("No se ha podido establecer conexión con BD en :3306")
         return jsonify([])
     
 
@@ -87,7 +78,7 @@ def cambiarZona():
         else:
             return jsonify({'message': '¡Zona ' + zona + ' no bloqueada!'})
     else:
-        return {'message': "No se ha podido establecer conexión con BD en " + host_BD + ":3306"}
+        return {'message': "No se ha podido establecer conexión con BD en :3306"}
 
 
 if __name__ == '__main__':
