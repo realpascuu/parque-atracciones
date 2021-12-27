@@ -11,7 +11,7 @@ import logging
 from time import sleep
 import signal
 import hashlib
-#import datatime
+from datetime import datetime
 import grpc
 from protosRegistry import register_pb2, register_pb2_grpc
 
@@ -46,7 +46,7 @@ def registrarse(username, password, id):
         if data:
             message = "El usuario ya existe"
             existe = True
-
+            #subirEvento(p)
         if not existe:
             passHash,salt = obtenerHash(password)
             sql = "INSERT INTO usuarios(username, password, salt, alias) VALUES (%s, %s, %s, %s)"
@@ -61,7 +61,7 @@ def registrarse(username, password, id):
     except Exception as e:
         print(e)
         message = "No se ha podido establecer conexión con BD en " + host_BD + ":3306";
-        return message
+        return e
 
 def login(username, password, ):
     try:
@@ -145,7 +145,11 @@ class Register(register_pb2_grpc.RegisterServicer):
 class Login(register_pb2_grpc.LoginServicer):
     async def doLogin(self, request: register_pb2.UserPedido, context: grpc.aio.ServicerContext) -> register_pb2.UserRespuesta:
         logging.info("Se quiere loguear el usuario " + request.username)
-        
+        ip_cliente = context.peer()
+        indice1 = ip_cliente.index('[')
+        indice2 = ip_cliente.index(']')
+        ip_cliente = ip_cliente[indice1+1:indice2]
+        print(ip_cliente)
         (message, usernameLog, alias) = login(request.username, request.password)
         return register_pb2.UserRespuesta(message=message, username=usernameLog, alias=alias)
 
@@ -173,6 +177,23 @@ class AuthInterceptor(grpc.ServerInterceptor):
             return continuation(handler_call_details)
         else:
             return self._deny
+
+def subirEvento(IP, accion, descripcion):
+    mydb = mysql.connector.connect(
+    host=host_BD,
+    user=user_BD,
+    passwd=passwd_BD,
+    database=database_BD)
+
+    mycursor = mydb.cursor()
+
+    fecha = datetime.now()
+    query = "INSERT INTO Eventos(fecha,IP_error,acción,descripción) VALUES (%s,%s,%s,%s)"
+    val = (fecha,IP, accion, descripcion)
+
+    mycursor.execute(query,val)
+    mydb.commit()
+
 
 def obtenerHash(password):
     characters = string.ascii_letters + string.digits + string.punctuation
