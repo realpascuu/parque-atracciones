@@ -132,10 +132,56 @@ def loginAPI():
 
 
 def editarUsuarioAPI():
-    print('editar')
+    print("-------------EDITAR USUARIO-------------")
+    print("Necesitamos que confirmes tus credenciales para continuar...")
+    try:
+        login = loginAPI()
+        print(login['message'])
+        if login['message'] == "Autentificación exitosa!!":
+            opUpdate = input("Quieres modificar tus datos? (y/n) ")
+            if opUpdate == 'y':
+                newUser = input("Introduce usuario nuevo: ")
+                newPass = crearPassword()
+                update_data = {
+                'username' : newUser,
+                'password' : newPass
+                }
+                update =  requests.put(URL_API_REGISTRY + '/usuarios/' + login['username'], 
+                                        json=update_data, verify=False)
+                print(update.json()['message'])
+    except PasswordException as passExcept:
+        print(passExcept.mensaje)
+        print('No se pudo editar el usuario')
+    except requests.exceptions.ConnectionError as e:
+        raise Exception('Connection refused')
+    except Exception as e:
+        raise e
 
 def registroAPI():
-    print('registro')
+    print("----------REGISTRO----------")
+    nuevoUsername = input("Introduce usuario: ")
+    # comprobar contraseña
+    correcto = False
+    while(not correcto):
+        try:
+            password = crearPassword()
+            correcto = True
+        except PasswordException as e:
+            print(e.mensaje)
+
+    nuevoAlias = nuevoUsername[0:2]
+    try:
+        registry_data = {
+            'username': nuevoUsername,
+            'password': password 
+        }
+        registro = requests.post(URL_API_REGISTRY + '/usuarios', 
+                                json=registry_data, verify=False)
+        print(registro.json()['message'])
+    except requests.exceptions.ConnectionError as e:
+        raise Exception('Connection refused')
+    except Exception as e:
+        raise e
 ## FUNCIÓN PARA ESTABLECER CONEXIÓN GRPC
 async def run(host, port):   
     with open('clavesRegistro/server.crt', 'rb') as f:
