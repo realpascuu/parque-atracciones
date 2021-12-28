@@ -26,11 +26,18 @@
             <button @click="eventBloquearZona()" id="envioZona" type="button" class="espacio-formulario boton">Enviar</button>
         </div>
     </div>
+    <div class="padre">
+        <div class="formulario" id="info-zona">
+            <div @click="cerrarInfo()" class="close">x</div>
+            <div class="" id="info-zona-content">
+
+            </div>
+        </div>
+    </div>
     <div @click="cerrarPopup($event)" class="popup-wrapper" id="popup-wrapper">
         <div class="popup">
             <div @click="cerrarPopup($event)" class="popup-close">x</div>
-            <div class="popup-content">
-                Error al conectar con la API
+            <div class="popup-content" id="popup-content">
             </div>
         </div>
     </div>
@@ -57,9 +64,11 @@ export default {
     }
   },
   methods: {
-    changePopup(cadena) {
+    changePopup(cadena, mensaje) {
         const popup = document.getElementById('popup-wrapper')
+        const popup_content = document.getElementById('popup-content')
         popup.style.display = cadena;
+        popup_content.innerHTML = mensaje;
     },
 
     continuarIntervalo() {
@@ -88,7 +97,7 @@ export default {
                         }
                     }
                 }
-        }, 1500)
+        }, 2000)
     },
 
     async  getAtracciones() {
@@ -97,7 +106,7 @@ export default {
           return atracciones
       }).catch(() => {
           clearInterval(this.intervalId)
-          this.changePopup('block');
+          this.changePopup('block', 'Error al obtener atracciones');
           return []
       });
     },
@@ -107,7 +116,7 @@ export default {
           return await resp.json()
       }).catch(() => {
           clearInterval(this.intervalId)
-          this.changePopup('block');
+          this.changePopup('block', 'Error al obtener usuarios');
           return []
       });
     },
@@ -124,9 +133,12 @@ export default {
           })
       }).then(async(resp) => {
           var mensaje = await resp.json();
-          return mensaje.message
+          const mensajeInfo = document.getElementById('info-zona-content')
+          mensajeInfo.innerHTML = mensaje.message
+          const infoZona = document.getElementById('info-zona')
+        infoZona.style.display = 'block'
       }).catch(() => {
-          this.changePopup('block');
+          this.changePopup('block', 'Error al bloquear una zona');
           return 'No se pudo actualizar'
       });
     },
@@ -146,6 +158,10 @@ export default {
         this.changePopup('none');
       }
       this.intervalId = this.continuarIntervalo()
+    },
+    cerrarInfo() {
+        const infoZona = document.getElementById('info-zona')
+        infoZona.style.display = 'none'
     }
   },
   mounted: function() {
@@ -275,6 +291,7 @@ li {
 
 .formulario {
     display: flex;
+    position: relative;
     justify-content: center;
     padding: 1em;
     background-color: rgba(238, 233, 233, 0.33);
@@ -385,6 +402,34 @@ li {
     cursor: pointer;
     font-size: 1.5rem;
     padding: 0.2em;
+}
+
+.close {
+    position: absolute;
+    font-family: monospace;
+    color: grey;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.05em;
+    top: 5px;
+    right: 10px;
+}
+
+.close:hover {
+    color: rgb(67, 67, 67);
+}
+
+#info-zona {
+    background-color: rgba(28, 156, 211, 0.53);
+    border: 1px solid rgba(28, 156, 211, 0.53);
+    display: none;
+    margin: 2em;
+}
+
+#info-zona-content {
+    text-align: center;
+    color: rgb(101, 101, 101);
+    
 }
 
 .popup-close:hover {

@@ -1,16 +1,13 @@
 from time import sleep
 
-from werkzeug.wrappers import request
 from common.Coordenadas2D import Coordenadas2D
 import common.Kafka as Kafka
 import threading
 from numpy import *
 import random
 import signal
-import hashlib
 import sys
 import requests
-import json
 
 sys.path.insert(0, './protosRegistry')
 
@@ -168,8 +165,6 @@ def registroAPI():
             correcto = True
         except PasswordException as e:
             print(e.mensaje)
-
-    nuevoAlias = nuevoUsername[0:2]
     try:
         registry_data = {
             'username': nuevoUsername,
