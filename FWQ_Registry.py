@@ -89,7 +89,6 @@ def login(username, password, ):
             usernameLog = data[0][0]
             alias = data[0][1]
 
-
         if existe:
             query = "SELECT password, salt FROM usuarios WHERE username=" + "\"" + username + "\""
             mycursor.execute(query)
@@ -125,6 +124,7 @@ def actualizar(oldUsername, newUsername, password):
         try:
             mycursor.execute(queryUser)
             mydb.commit()
+            message = "USUARIO ACTUALIZADO!"
         except mysql.connector.Error as err:
             logging.info("Error: No se puede actualizar el usuario")
             message = "Error: No se puede actualizar el usuario"

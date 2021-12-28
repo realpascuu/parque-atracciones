@@ -1,4 +1,6 @@
 from time import sleep
+
+from werkzeug.wrappers import request
 from common.Coordenadas2D import Coordenadas2D
 import common.Kafka as Kafka
 import threading
@@ -7,6 +9,8 @@ import random
 import signal
 import hashlib
 import sys
+import requests
+import json
 
 sys.path.insert(0, './protosRegistry')
 
@@ -17,9 +21,13 @@ from protosRegistry import register_pb2, register_pb2_grpc
 
 from common.Usuario import Usuario
 
+# no permitir warnings provenientes de la conexión con la api(al hacerla nosotros confiamos en ella) 
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 ## LLAMADA A Visitor
 LLAMADA_VISITOR = "python3 FWQ_Visitor.py <host>:<port_registry> <host>:<port_kafka>"
-
+URL_API_REGISTRY = 'https://localhost:5005'
 class PasswordException(Exception):
     def __init__(self, mensaje):
         self.mensaje = mensaje
@@ -28,18 +36,24 @@ class PasswordException(Exception):
 def menu():
     print("BIENVENIDO AL PARQUE DE ATRACCIONES")
     print("""------------- MENÚ ------------------------
-    1. Registro
-    2. Inicio Sesión
-    3. Editar usuario
+    1. Registro (socket)
+    2. Inicio Sesión (socket)
+    3. Editar usuario (socket)
+    4. Registro (https)
+    5. Inicio Sesión (https)
+    6. Editar usuario (https)
     0. Salir
         """)
     return input("¿Qué desea hacer? ")
 
 def errorInput():
     print('VALOR INCORRECTO!')
-    print('Introduce 1 para registrarte')
-    print('Introduce 2 para iniciar sesión')
-    print('Introduce 3 para editar usuario')
+    print('Introduce 1 para registrarte (socket)')
+    print('Introduce 2 para iniciar sesión (socket)')
+    print('Introduce 3 para editar usuario (socket)')
+    print('Introduce 4 para registrarte (https)')
+    print('Introduce 5 para iniciar sesión (https)')
+    print('Introduce 6 para editar usuario (https)')
 
 def crearPassword():
     password = getpass("Introduce contraseña: ")
@@ -66,7 +80,7 @@ async def registro(channel):
         registro = await stub.doRegister(register_pb2.UserRequest(username=nuevoUsername, password=password, id=nuevoAlias))
         print(registro.message)
     except Exception as e:
-        raise Exception
+        raise e
 
 async def tryLogin(channel):
     stub = register_pb2_grpc.LoginStub(channel)
@@ -77,7 +91,7 @@ async def tryLogin(channel):
         login = await stub.doLogin(register_pb2.UserPedido(username=posibleUsername, password=password))
         return login
     except Exception as e:
-        raise Exception
+        raise e
 
 async def editarUsuario(channel):
     print("-------------EDITAR USUARIO-------------")
@@ -90,13 +104,38 @@ async def editarUsuario(channel):
             if opUpdate == 'y':
                 stubUpdate = register_pb2_grpc.UpdateStub(channel)
                 newUser = input("Introduce usuario nuevo: ")
-                newPass = getpass("Introduce nueva contraseña: ")
+                newPass = crearPassword()
                
                 update = await stubUpdate.doUpdate(register_pb2.UserToChange(oldUsername=login.username,newUsername=newUser,password=newPass))
                 print(update.message)
     except Exception as e:
-        raise Exception
+        raise e
+    except PasswordException as passExcept:
+        print(passExcept.mensaje)
+        print('No se pudo editar el usuario')
 
+def loginAPI():
+    print('------- LOGIN-------')
+    posibleUsername = input("Introduce usuario: ")
+    password = getpass("Introduce contraseña: ")
+    auth_data = {
+        'username' : posibleUsername,
+        'password' : password
+        }
+    try:                    
+        login = requests.post(URL_API_REGISTRY + '/login', json=auth_data, verify=False)
+        return login.json()
+    except requests.exceptions.ConnectionError as e:
+        raise Exception('ERROR: Connection refused')
+    except Exception as e:
+        raise e
+
+
+def editarUsuarioAPI():
+    print('editar')
+
+def registroAPI():
+    print('registro')
 ## FUNCIÓN PARA ESTABLECER CONEXIÓN GRPC
 async def run(host, port):   
     with open('clavesRegistro/server.crt', 'rb') as f:
@@ -120,6 +159,21 @@ async def run(host, port):
                 elif int(op) == 3:
                     # EDITAR USUARIO
                     await editarUsuario(channel)
+                elif int(op) == 4:
+                    # REGISTRO
+                    registroAPI()
+                elif int(op) == 5:
+                    # LOGIN
+                    login = loginAPI()
+                    print(login)
+                    if login['message'] == "Autentificación exitosa!!":
+                        response = type('', (), {})
+                        response.username = login['username']
+                        response.alias = login['alias']
+                        return response
+                elif int(op) == 6:
+                    # EDITAR USUARIO
+                    editarUsuarioAPI()
                 elif int(op) == 0:
                     # SALIR
                     exit()
@@ -129,9 +183,9 @@ async def run(host, port):
             # caso de una cadena
             except ValueError:
                 errorInput()
-            except Exception:
-                print("No se ha podido establecer conexión con " + host + ":" + port)
-
+            except Exception as e:
+                print(e)
+          
 def buscarAtraccion(usuario, mapa):
     encontrado = False
     (x1, y1) = (-1, -1)

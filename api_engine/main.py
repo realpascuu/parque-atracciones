@@ -62,12 +62,11 @@ def obtenerUsuarios():
         return jsonify([])
     
 
-@app.route('/zona', methods=['PUT'])
+@app.route("/zona/<string:zona>", methods=['PUT'])
 
-def cambiarZona():
+def cambiarZona(zona):
     request_data = request.get_json()
 
-    zona = request_data['zona']
     ciudad = request_data['ciudad']
     
     (resultado, block) = actualizarZona(zona, ciudad)

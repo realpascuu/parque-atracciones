@@ -1,3 +1,4 @@
+import logging
 from flask import Flask, jsonify, request
 from flask_cors import CORS, cross_origin
 import mysql.connector
@@ -43,6 +44,7 @@ def actualizarUsuario(oldUsername):
 # ruta qye realiza el login de un usuario
 @app.route('/login', methods=['POST'])
 def loginUsuario():
+    logging.info(request.get_data())
     request_data = request.get_json()
     username = request_data['username']
     password = request_data['password']

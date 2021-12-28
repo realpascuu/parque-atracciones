@@ -113,14 +113,13 @@ export default {
     },
 
     async blockZona(zona, city) {
-      return fetch(this.cadenaAPI + '/zona', {
+      return fetch(this.cadenaAPI + '/zona/'+ zona, {
           method: 'PUT',
           mode: 'cors',
           headers: {
               'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-              zona: zona,
               ciudad: city
           })
       }).then(async(resp) => {
