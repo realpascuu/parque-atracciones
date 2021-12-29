@@ -27,7 +27,7 @@ def crearUsuario():
 
     alias = username[0:2]
 
-    message = registrarse(username, password, alias)
+    message = registrarse(username, password, alias, request.remote_addr)
     return jsonify({ 'message': message})
 
 # ruta que realiza la actualización del usuario
@@ -37,7 +37,7 @@ def actualizarUsuario(oldUsername):
     newUsername = request_data['username']
     password = request_data['password']
 
-    message = actualizar(oldUsername, newUsername, password)
+    message = actualizar(oldUsername, newUsername, password, request.remote_addr)
 
     return jsonify({'message': message})
 
@@ -48,7 +48,7 @@ def loginUsuario():
     username = request_data['username']
     password = request_data['password']
 
-    message, username, alias = login(username, password)
+    message, username, alias = login(username, password, request.remote_addr)
 
     return jsonify({
         'message': message,

@@ -125,8 +125,13 @@ def actualizarZonas():
         sleep(1)
 
 def updateUsuario(username, x, y):
-    global mydb
     try:
+        mydb = mysql.connector.connect(
+        host=host_BD,
+        user=user_BD,
+        passwd=passwd_BD,
+        database=database_BD
+        )
         query = 'UPDATE usuarios SET x = ' + str(x) + ' , y = ' + str(y) + ' WHERE username = \'' + str(username) + '\''
         mycursor = mydb.cursor()
         mycursor.execute(query)
@@ -134,22 +139,29 @@ def updateUsuario(username, x, y):
         mydb.commit()
 
         logging.info(mycursor.rowcount, " usuarios afectados")
-    except Exception:
-        print("No se puedo establecer conexión con MySql")
+    except Exception as e:
+        print(e)
+        print("No se pudo actualizar usuario")
 
 def updateAtraccion(id, tiempoEspera, block):
-    global mydb
     if block:
         tiempoEspera = -1
     query = 'UPDATE atraccion SET tiempo_espera = ' + str(tiempoEspera) + ' WHERE id = ' + str(id)
     try:
+        mydb = mysql.connector.connect(
+        host=host_BD,
+        user=user_BD,
+        passwd=passwd_BD,
+        database=database_BD
+        )
         mycursor = mydb.cursor()
         mycursor.execute(query)
 
         mydb.commit()
         logging.info(mycursor.rowcount, " atracciones afectadas")
-    except Exception:
-        print("No se puedo establecer conexión con MySql")
+    except Exception as e:
+        print(e)
+        print("No se pudo actualizar atracción")
 
 
 def datosParaEnviarPorCanal(atracciones):
@@ -273,7 +285,6 @@ def colaEntrada(mapa):
     global usuariosDentro
 
     for message in consumerEntrada:
-        print(usuariosCola)
         usuario = message.value
         if 'salida' in usuario.keys():
             if buscarUsuario(usuariosDentro, usuario['username']):
@@ -291,7 +302,6 @@ def colaEntrada(mapa):
                 sacarUsuario(usuariosDentro, usuario['username'])
 
                 # meter usuarios de la cola hasta que no hayan más o no quepan
-                print(len(usuariosCola), contadorVisitantes)
                 while (not len(usuariosCola) == 0) and contadorVisitantes < max_visitantes:
                     entradaUsuario(usuariosCola[0])
                     usuariosDentro.append(usuariosCola[0])
@@ -368,13 +378,13 @@ def consultaAtracciones():
                     passwd=passwd_BD,
                     database=database_BD)
 
-        query = 'SELECT id, x, y, tiempo_espera FROM atraccion'
+        query = 'SELECT id, x, y, tiempo_espera, timec, nvisitors FROM atraccion'
         mycursor = mydb.cursor()
 
         mycursor.execute(query)
         return mycursor.fetchall()
-    except Exception:
-        raise Exception
+    except Exception as e:
+        raise e
 
 def consultaUsuarios():
     try:
@@ -389,32 +399,31 @@ def consultaUsuarios():
         mycursor = mydb.cursor()
         mycursor.execute(query)
         return mycursor.fetchall()
-    except Exception:
-        raise Exception
+    except Exception as e:
+        raise e
 
 def consultaBD():
     global atracciones
     global usuariosDentro
-    global mydb
     conexion = False
     while conexion == False:
         try:
-            conexion = True
+            print(1)
             # obtener valores actuales de las atracciones
             conAtracciones = consultaAtracciones()
 
             for x in conAtracciones:
-                atracciones.append(Atraccion(x[0], x[1], x[2], Coordenadas2D(x[3], x[4]), -1))
+                atracciones.append(Atraccion(x[0], x[4], x[5], Coordenadas2D(x[1], x[2]), x[3]))
                 zona = definirZona(atracciones[-1].coordenadas.x, atracciones[-1].coordenadas.y)
                 atracciones[-1].block = zonas[zona - 1]
                 updateAtraccion(atracciones[-1].id, -1, atracciones[-1].block)
-                
+
+            print(2)    
             # obtener valores de los usuarios
             conUsuarios = consultaUsuarios()
-
+            print(3)
             # consulta si hay algún usuario aún dentro del mapa
             for x in conUsuarios:
-                print(x.alias)
                 usuario = {
                     'alias': x[1],
                     'username' : x[0],
@@ -422,6 +431,8 @@ def consultaBD():
                     'y' : x[3]
                 }
                 usuariosDentro.append(usuario)
+
+            conexion = True
         except Exception as e:
             print(e)
             sleep(5)

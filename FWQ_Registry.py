@@ -190,9 +190,13 @@ def subirEvento(IP, accion, descripcion):
 
 def ip_cliente(context):
     ip_cliente = context.peer()
-    indice1 = ip_cliente.index('[')
-    indice2 = ip_cliente.index(']')
-    ip_cliente = ip_cliente[indice1+1:indice2]
+    if 'ipv6' in ip_cliente:
+        indice1 = ip_cliente.index('[')
+        indice2 = ip_cliente.index(']')
+        ip_cliente = ip_cliente[indice1+1:indice2]
+    if 'ipv4' in ip_cliente:
+        ip_cliente = ip_cliente.split(':')[1]
+    
     return ip_cliente
 
 def obtenerHash(password):

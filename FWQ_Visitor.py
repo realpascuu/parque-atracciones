@@ -206,7 +206,7 @@ async def run(host, port):
                 elif int(op) == 5:
                     # LOGIN
                     login = loginAPI()
-                    print(login)
+                    print(login['message'])
                     if login['message'] == "Autentificación exitosa!!":
                         response = type('', (), {})
                         response.username = login['username']
@@ -347,7 +347,7 @@ def leerMapa(usuario, mapa):
         print()
 
         # Ver si usuario tiene objetivo para moverse por el mapa, y si no, buscarlo
-        if usuario.atraccion is None or (usuario.atraccion.x, usuario.atraccion.y) == (usuario.coordenadas.x, usuario.coordenadas.y) or int(mapa[usuario.atraccion.x, usuario.atraccion.y]) > 60:
+        if usuario.atraccion is None or (usuario.atraccion.x, usuario.atraccion.y) == (usuario.coordenadas.x, usuario.coordenadas.y) or int(mapa[usuario.atraccion.x, usuario.atraccion.y]) > 60 or int(mapa[usuario.atraccion.x, usuario.atraccion.y]) == -1:
             buscarAtraccion(usuario, mapa)
 
 # Movimiento automatizado cada x segundos hacia la atracción escogida
