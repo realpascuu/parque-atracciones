@@ -27,18 +27,19 @@ _cleanup_coroutines = []
 class WaitingTime(waitingTime_pb2_grpc.WaitingTimeServicer):
     async def giveTime(self, request: waitingTime_pb2.EngineRequest, context: grpc.aio.ServicerContext) -> waitingTime_pb2.TimeReply:
         atraccionesEngine = np.frombuffer(request.atracciones, dtype=np.int64).reshape(request.numFilas, 5)
+        print('Calculando...')
         global atracciones
         datosEngine = []
-
         for x in atraccionesEngine:
             datosEngine.append(Atraccion(x[0],x[1],x[2], Coordenadas2D(x[3],x[4]), -1))
 
         datos = []
-
+        
         for actAtraccion in datosEngine:
             for atraccion in atracciones:
                 if atraccion.id == actAtraccion.id:
                     datos.append([atraccion.id, getTime(actAtraccion.timec, actAtraccion.nvisitors, atraccion.cola)])
+        
         datosNumpy = np.array(datos, dtype=np.int64)
         m = datosNumpy.shape
         byteAtraccion = datosNumpy.tobytes()
@@ -69,7 +70,7 @@ async def serve(port) -> None:
     # abrimos el certificado
     with open('clavesTimeServer/server.crt', 'rb') as f:
         certificate_chain = f.read()
-    server_credentials = grpc.ssl_server_credentials( ((private_key, certificate_chain,),))
+    server_credentials = grpc.ssl_server_credentials(((private_key, certificate_chain,),))
     server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))
     waitingTime_pb2_grpc.add_WaitingTimeServicer_to_server(WaitingTime(), server)
     

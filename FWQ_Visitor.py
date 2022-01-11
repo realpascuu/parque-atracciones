@@ -24,7 +24,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 ## LLAMADA A Visitor
 LLAMADA_VISITOR = "python3 FWQ_Visitor.py <host>:<port_registry> <host>:<port_kafka>"
-URL_API_REGISTRY = 'https://localhost:5005'
+URL_API_REGISTRY = 'https://192.168.56.9:5005'
 class PasswordException(Exception):
     def __init__(self, mensaje):
         self.mensaje = mensaje
@@ -181,8 +181,12 @@ def registroAPI():
 async def run(host, port):   
     with open('clavesRegistro/server.crt', 'rb') as f:
         trusted_certs = f.read()
+
+    
+    cert_cn = "registro.org"
+    options = (('grpc.ssl_target_name_override', cert_cn),('grpc.default_authority', cert_cn),)
     credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
-    async with grpc.aio.secure_channel(host + ':' + port, credentials) as channel:    
+    async with grpc.aio.secure_channel(host + ':' + port, credentials, options) as channel:    
         seguir = True
         # sigue bucle hasta que se hace login o se quiere salir de la app
         while seguir:
@@ -194,7 +198,7 @@ async def run(host, port):
                 elif int(op) == 2:
                     # LOGIN
                     login = await tryLogin(channel)
-                    print(login.message)
+                    print(login.message)    
                     if login.message == "Autentificación exitosa!!":
                         return login
                 elif int(op) == 3:

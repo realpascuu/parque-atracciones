@@ -81,4 +81,4 @@ def cambiarZona(zona):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3000, ssl_context=('./ssl/cert.pem', './ssl/key.pem'))
+    app.run(host="192.168.56.1", debug=True, port=3000, ssl_context=('./ssl/cert.pem', './ssl/key.pem'))

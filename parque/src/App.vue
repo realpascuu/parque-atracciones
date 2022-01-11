@@ -59,7 +59,7 @@ export default {
     return {
       zona: 1,
       ciudad: '',
-      cadenaAPI: 'https://localhost:3000',
+      cadenaAPI: 'https://192.168.56.1:3000',
       intervalId: ''
     }
   },

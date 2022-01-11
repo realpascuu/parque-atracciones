@@ -57,4 +57,4 @@ def loginUsuario():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5005, ssl_context=('./ssl/cert.pem', './ssl/key.pem'))
+    app.run(host="", port=5005, debug=True, ssl_context=('./ssl/cert.pem', './ssl/key.pem'))

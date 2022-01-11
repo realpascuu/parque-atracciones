@@ -23,6 +23,10 @@ sys.path.append(sys.path[0].split('api_engine')[0] + '/protosWait')
 
 from protosWait import waitingTime_pb2, waitingTime_pb2_grpc 
 
+'''import os 
+os.environ['GRPC_TRACE'] = 'all' 
+os.environ['GRPC_VERBOSITY'] = 'DEBUG' 
+'''
 # variables BD MySQL
 host_BD = 'localhost'
 user_BD = 'admin'
@@ -178,8 +182,11 @@ def datosParaEnviarPorCanal(atracciones):
 async def run(host, port):
     with open('clavesTimeServer/server.crt', 'rb') as f:
         trusted_certs = f.read()
-    credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
-    async with grpc.aio.secure_channel(host + ':' + port, credentials) as channel:  
+    
+    cert_cn = "tiempoespera.org"
+    options = (('grpc.ssl_target_name_override', cert_cn),('grpc.default_authority', cert_cn),)
+    credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs, private_key=None, certificate_chain=None)
+    async with grpc.aio.secure_channel(host + ':' + port, credentials, options) as channel:
         global atracciones
         stub = waitingTime_pb2_grpc.WaitingTimeStub(channel)
         
@@ -187,7 +194,6 @@ async def run(host, port):
         atraccionesNumpy = datosParaEnviarPorCanal(atracciones)
         byteatraccion = atraccionesNumpy.tobytes()
         (m, n) = atraccionesNumpy.shape
-
         conexion = False
         while conexion == False:
             try:
@@ -197,6 +203,7 @@ async def run(host, port):
                 conexion = True
             except Exception as e:
                 # error conexión con Servidor
+                print(e)
                 print("No se ha podido establecer conexión con Servidor Tiempos espera en " + str(host) + ':' + str(port))
                 sleep(5)
         # Transfromar datos
@@ -408,7 +415,6 @@ def consultaBD():
     conexion = False
     while conexion == False:
         try:
-            print(1)
             # obtener valores actuales de las atracciones
             conAtracciones = consultaAtracciones()
 
@@ -418,10 +424,8 @@ def consultaBD():
                 atracciones[-1].block = zonas[zona - 1]
                 updateAtraccion(atracciones[-1].id, -1, atracciones[-1].block)
 
-            print(2)    
             # obtener valores de los usuarios
             conUsuarios = consultaUsuarios()
-            print(3)
             # consulta si hay algún usuario aún dentro del mapa
             for x in conUsuarios:
                 usuario = {
